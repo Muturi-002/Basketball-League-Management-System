@@ -1,0 +1,75 @@
+/* Global layout */
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background-color: #020f05; /* very dark green/black */
+    color: lightgreen; /* light green */
+}
+
+.main-container {
+    margin: 5px;
+    padding: 18px; /* between 15-20px */
+}
+
+header {
+    background-color: darkgreen;
+    color: lightblue;
+    padding: 10px 18px;
+}
+
+.header-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.site-title {
+    font-size: 1.4rem;
+    font-weight: bold;
+}
+
+nav ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    gap: 10px;
+}
+
+nav a {
+    text-decoration: none;
+    color: white;
+    background-color: red; /* red base */
+    padding: 6px 12px;
+    border-radius: 4px;
+    transition: background-color 0.5s; 
+}
+
+nav a:hover {
+    background-color: #29ab87; /* jungle green */
+}
+
+.login-button {
+    text-decoration: none;
+    color: white;
+    background-color: red; /* red base */
+    padding: 6px 14px;
+    border-radius: 4px;
+    font-weight: bold;
+    transition: background-color 0.5s; /* 5 second hover effect */
+}
+
+.login-button:hover {
+    background-color: #29ab87; /* jungle green */
+}
+
+main h1, main h2 {
+    color: #29ab87;
+}
+
+.footer {
+    margin-top: 20px;
+    font-size: 0.85rem;
+    text-align: center;
+    color: #7c8f80;
+}
