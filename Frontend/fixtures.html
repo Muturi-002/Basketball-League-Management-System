@@ -1,39 +1,113 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>BLMS - Fixtures</title>
-    <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-<header>
-    <div class="header-bar">
-        <div class="site-title">Basketball League Management System</div>
-        <nav>
-            <ul>
-                <li><a href="home.html">Home</a></li>
-                <li><a href="teams.html">Teams</a></li>
-                <li><a href="players.html">Players</a></li>
-                <li><a href="injury.html">Injury</a></li>
-                <li><a href="stats.html">Stats</a></li>
-                <li><a href="fixtures.html">Fixtures</a></li>
-            </ul>
-        </nav>
-        <a class="login-button" href="auth.html">Login</a>
-    </div>
-</header>
+    <head>
+        <meta charset="UTF-8">
+        <title>BLMS - Fixtures</title>
+        <link rel="stylesheet" href="styles.css">
+    </head>
+    <body>
+        <header>
+            <div class="header-bar">
+                <div class="site-title">Basketball League Management System</div>
+                <nav>
+                    <ul>
+                        <li><a href="home.html">Home</a></li>
+                        <li><a href="teams.html">Teams</a></li>
+                        <li><a href="players.html">Players</a></li>
+                        <li><a href="injury.html">Injury</a></li>
+                        <li><a href="stats.html">Stats</a></li>
+                        <li><a href="fixtures.html">Fixtures</a></li>
+                    </ul>
+                </nav>
+                <a class="login-button" href="auth.html">Login</a>
+            </div>
+        </header>
 
-<div class="main-container">
-    <main>
-        <h1>Fixtures</h1>
-        <p>
-            View upcoming and past fixtures for the basketball league.
-        </p>
-    </main>
+        <div class="main-container">
+            <main>
+                <h1>Fixtures</h1>
+                <p>View upcoming and past fixtures for the basketball league.</p>
 
-    <div class="footer">
-        &copy; 2026 Basketball League Management System
-    </div>
-</div>
-</body>
+                <div id="fixtures-status" class="status-message">Loading fixtures...</div>
+
+                <div class="table-wrapper">
+                    <table class="data-table" id="fixtures-table">
+                        <thead>
+                        <tr>
+                            <th>Fixture ID</th>
+                            <th>Date</th>
+                            <th>Time</th>
+                            <th>Home Team</th>
+                            <th>Home Logo</th>
+                            <th>Away Team</th>
+                            <th>Away Logo</th>
+                            <th>Location</th>
+                        </tr>
+                        </thead>
+                        <tbody id="fixtures-body"></tbody>
+                    </table>
+                </div>
+            </main>
+
+            <div class="footer">
+                &copy; 2026 Basketball League Management System
+            </div>
+        </div>
+
+        <script>
+            function toImageSrc(base64Value) {
+                if (!base64Value) {
+                    return "";
+                }
+                return "data:image/jpeg;base64," + base64Value;
+            }
+
+            async function loadFixtures() {
+                const status = document.getElementById("fixtures-status");
+                const body = document.getElementById("fixtures-body");
+
+                try {
+                    const [fixturesResponse, teamsResponse] = await Promise.all([
+                        fetch("/api/fixtures"),
+                        fetch("/api/teams")
+                    ]);
+
+                    if (!fixturesResponse.ok || !teamsResponse.ok) {
+                        throw new Error("Unable to fetch fixtures or teams data.");
+                    }
+
+                    const fixtures = await fixturesResponse.json();
+                    const teams = await teamsResponse.json();
+                    const teamNameById = new Map();
+                    teams.forEach((team) => {
+                        teamNameById.set(team.clubId, team.teamName);
+                    });
+
+                    body.innerHTML = "";
+                    fixtures.forEach((fixture) => {
+                        const row = document.createElement("tr");
+                        row.innerHTML = `
+                            <td>${fixture.fixtureId}</td>
+                            <td>${new Date(fixture.fixtureDate).toLocaleDateString()}</td>
+                            <td>${new Date(fixture.fixtureTime).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"})}</td>
+                            <td>${teamNameById.get(fixture.homeTeamId) || fixture.homeTeamId}</td>
+                            <td>${fixture.homeTeamLogo ? '<img class="thumb-img" src="' + toImageSrc(fixture.homeTeamLogo) + '" alt="Home Team Logo">' : "N/A"}</td>
+                            <td>${teamNameById.get(fixture.awayTeamId) || fixture.awayTeamId}</td>
+                            <td>${fixture.awayTeamLogo ? '<img class="thumb-img" src="' + toImageSrc(fixture.awayTeamLogo) + '" alt="Away Team Logo">' : "N/A"}</td>
+                            <td>${fixture.fixtureLocation || "N/A"}</td>
+                        `;
+                        body.appendChild(row);
+                    });
+
+                    status.textContent = "Fixtures loaded: " + fixtures.length;
+                    status.className = "status-message status-success";
+                } catch (error) {
+                    status.textContent = "Failed to load fixtures: " + error.message;
+                    status.className = "status-message status-error";
+                }
+            }
+
+            loadFixtures();
+        </script>
+    </body>
 </html>

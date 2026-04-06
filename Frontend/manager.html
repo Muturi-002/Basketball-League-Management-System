@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>BLMS - Manager Details</title>
+        <link rel="stylesheet" href="styles.css">
+    </head>
+    <body>
+        <header>
+            <div class="header-bar">
+                <div class="site-title">Basketball League Management System</div>
+                <nav>
+                    <ul>
+                        <li><a href="home.html">Home</a></li>
+                        <li><a href="teams.html">Teams</a></li>
+                        <li><a href="players.html">Players</a></li>
+                        <li><a href="injury.html">Injury</a></li>
+                        <li><a href="stats.html">Stats</a></li>
+                        <li><a href="fixtures.html">Fixtures</a></li>
+                    </ul>
+                </nav>
+                <a class="login-button" href="auth.html">Login</a>
+            </div>
+        </header>
+
+        <div class="main-container">
+            <main>
+                <h1>Manager Profile</h1>
+                <p>Manager details are loaded dynamically from the database based on the selected manager.</p>
+
+                <div id="manager-status" class="status-message">Loading manager details...</div>
+
+                <section class="profile-card" id="manager-card" hidden>
+                    <img id="manager-photo" class="profile-photo" alt="Manager Photo">
+                    <div class="profile-grid">
+                        <div><strong>Manager ID:</strong> <span id="manager-id"></span></div>
+                        <div><strong>Name:</strong> <span id="manager-name"></span></div>
+                        <div><strong>Manager Type:</strong> <span id="manager-type"></span></div>
+                        <div><strong>Team:</strong> <span id="manager-team"></span></div>
+                        <div><strong>History:</strong> <span id="manager-history"></span></div>
+                    </div>
+                </section>
+            </main>
+
+            <div class="footer">
+                &copy; 2026 Basketball League Management System
+            </div>
+        </div>
+
+        <script>
+            function toImageSrc(base64Value) {
+                if (!base64Value) {
+                    return "";
+                }
+                return "data:image/jpeg;base64," + base64Value;
+            }
+
+            function getManagerID() {
+                const params = new URLSearchParams(window.location.search);
+                return Number(params.get("id"));
+            }
+
+            async function loadManager() {
+                const status = document.getElementById("manager-status");
+                const card = document.getElementById("manager-card");
+
+                try {
+                    const managerID = getManagerID();
+                    if (!managerID) {
+                        throw new Error("No manager ID was provided. Open this page from the Teams page manager link.");
+                    }
+
+                    const [managerResponse, teamsResponse] = await Promise.all([
+                        fetch("/api/managers/" + managerID),
+                        fetch("/api/teams")
+                    ]);
+
+                    if (!managerResponse.ok) {
+                        throw new Error("Manager not found.");
+                    }
+                    if (!teamsResponse.ok) {
+                        throw new Error("Unable to load team details.");
+                    }
+
+                    const manager = await managerResponse.json();
+                    const teams = await teamsResponse.json();
+                    const team = teams.find((candidate) => candidate.clubId === manager.teamId);
+
+                    const middleName = manager.middleName ? manager.middleName + " " : "";
+                    document.getElementById("manager-id").textContent = manager.managerId;
+                    document.getElementById("manager-name").textContent = manager.firstName + " " + middleName + manager.lastName;
+                    document.getElementById("manager-type").textContent = manager.managerType || "N/A";
+                    document.getElementById("manager-team").textContent = team ? team.teamName : manager.teamId;
+                    document.getElementById("manager-history").textContent = manager.managerHistory || "N/A";
+
+                    const photo = document.getElementById("manager-photo");
+                    if (manager.managerPhoto) {
+                        photo.src = toImageSrc(manager.managerPhoto);
+                        photo.hidden = false;
+                    } else {
+                        photo.hidden = true;
+                    }
+
+                    card.hidden = false;
+                    status.textContent = "Manager profile loaded.";
+                    status.className = "status-message status-success";
+                } catch (error) {
+                    status.textContent = "Failed to load manager details: " + error.message;
+                    status.className = "status-message status-error";
+                    card.hidden = true;
+                }
+            }
+
+            loadManager();
+        </script>
+    </body>
+</html>

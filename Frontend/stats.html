@@ -1,39 +1,106 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>BLMS - Stats</title>
-    <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-<header>
-    <div class="header-bar">
-        <div class="site-title">Basketball League Management System</div>
-        <nav>
-            <ul>
-                <li><a href="home.html">Home</a></li>
-                <li><a href="teams.html">Teams</a></li>
-                <li><a href="players.html">Players</a></li>
-                <li><a href="injury.html">Injury</a></li>
-                <li><a href="stats.html">Stats</a></li>
-                <li><a href="fixtures.html">Fixtures</a></li>
-            </ul>
-        </nav>
-        <a class="login-button" href="auth.html">Login</a>
-    </div>
-</header>
+    <head>
+        <meta charset="UTF-8">
+        <title>BLMS - Stats</title>
+        <link rel="stylesheet" href="styles.css">
+    </head>
+    <body>
+        <header>
+            <div class="header-bar">
+                <div class="site-title">Basketball League Management System</div>
+                <nav>
+                    <ul>
+                        <li><a href="home.html">Home</a></li>
+                        <li><a href="teams.html">Teams</a></li>
+                        <li><a href="players.html">Players</a></li>
+                        <li><a href="injury.html">Injury</a></li>
+                        <li><a href="stats.html">Stats</a></li>
+                        <li><a href="fixtures.html">Fixtures</a></li>
+                    </ul>
+                </nav>
+                <a class="login-button" href="auth.html">Login</a>
+            </div>
+        </header>
 
-<div class="main-container">
-    <main>
-        <h1>League Statistics</h1>
-        <p>
-            Explore standings, results, and performance statistics for the league.
-        </p>
-    </main>
+        <div class="main-container">
+            <main>
+                <h1>League Statistics</h1>
+                <p>Explore standings, results, and performance statistics for the league.</p>
 
-    <div class="footer">
-        &copy; 2026 Basketball League Management System
-    </div>
-</div>
-</body>
+                <div id="stats-status" class="status-message">Loading statistics...</div>
+
+                <div class="table-wrapper">
+                    <table class="data-table" id="stats-table">
+                        <thead>
+                        <tr>
+                            <th>Stat ID</th>
+                            <th>Team</th>
+                            <th>Games Played</th>
+                            <th>Wins</th>
+                            <th>Losses</th>
+                            <th>Points</th>
+                            <th>Points Scored</th>
+                            <th>Points Allowed</th>
+                        </tr>
+                        </thead>
+                        <tbody id="stats-body"></tbody>
+                    </table>
+                </div>
+            </main>
+
+            <div class="footer">
+                &copy; 2026 Basketball League Management System
+            </div>
+        </div>
+
+        <script>
+            async function loadStats() {
+                const status = document.getElementById("stats-status");
+                const body = document.getElementById("stats-body");
+
+                try {
+                    const [statsResponse, teamsResponse] = await Promise.all([
+                        fetch("/api/stats"),
+                        fetch("/api/teams")
+                    ]);
+
+                    if (!statsResponse.ok || !teamsResponse.ok) {
+                        throw new Error("Unable to fetch stats or teams data.");
+                    }
+
+                    const stats = await statsResponse.json();
+                    const teams = await teamsResponse.json();
+                    const teamNameByID = new Map();
+                    teams.forEach((team) => {
+                        teamNameByID.set(team.clubId, team.teamName);
+                    });
+
+                    body.innerHTML = "";
+                    stats.forEach((stat) => {
+                        const row = document.createElement("tr");
+                        row.innerHTML = `
+                            <td>${stat.statId}</td>
+                            <td>${teamNameByID.get(stat.teamId) || stat.teamId}</td>
+                            <td>${stat.gamesPlayed}</td>
+                            <td>${stat.wins}</td>
+                            <td>${stat.losses}</td>
+                            <td>${stat.points}</td>
+                            <td>${stat.pointsScored}</td>
+                            <td>${stat.pointsAllowed}</td>
+                        `;
+                        body.appendChild(row);
+                    });
+
+                    status.textContent = "Statistics loaded: " + stats.length;
+                    status.className = "status-message status-success";
+                } catch (error) {
+                    status.textContent = "Failed to load statistics: " + error.message;
+                    status.className = "status-message status-error";
+                }
+            }
+
+            loadStats();
+        </script>
+    </body>
 </html>

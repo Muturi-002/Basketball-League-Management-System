@@ -1,39 +1,117 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>BLMS - Players</title>
-    <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-<header>
-    <div class="header-bar">
-        <div class="site-title">Basketball League Management System</div>
-        <nav>
-            <ul>
-                <li><a href="home.html">Home</a></li>
-                <li><a href="teams.html">Teams</a></li>
-                <li><a href="players.html">Players</a></li>
-                <li><a href="injury.html">Injury</a></li>
-                <li><a href="stats.html">Stats</a></li>
-                <li><a href="fixtures.html">Fixtures</a></li>
-            </ul>
-        </nav>
-        <a class="login-button" href="auth.html">Login</a>
-    </div>
-</header>
+    <head>
+        <meta charset="UTF-8">
+        <title>BLMS - Players</title>
+        <link rel="stylesheet" href="styles.css">
+    </head>
+    <body>
+        <header>
+            <div class="header-bar">
+                <div class="site-title">Basketball League Management System</div>
+                <nav>
+                    <ul>
+                        <li><a href="home.html">Home</a></li>
+                        <li><a href="teams.html">Teams</a></li>
+                        <li><a href="players.html">Players</a></li>
+                        <li><a href="injury.html">Injury</a></li>
+                        <li><a href="stats.html">Stats</a></li>
+                        <li><a href="fixtures.html">Fixtures</a></li>
+                    </ul>
+                </nav>
+                <a class="login-button" href="auth.html">Login</a>
+            </div>
+        </header>
 
-<div class="main-container">
-    <main>
-        <h1>League Players</h1>
-        <p>
-            View detailed information about players participating in the league.
-        </p>
-    </main>
+        <div class="main-container">
+            <main>
+                <h1>League Players</h1>
+                <p>View detailed information about players and their associated teams.</p>
 
-    <div class="footer">
-        &copy; 2026 Basketball League Management System
-    </div>
-</div>
-</body>
+                <div id="players-status" class="status-message">Loading players...</div>
+
+                <div class="table-wrapper">
+                    <table class="data-table" id="players-table">
+                        <thead>
+                        <tr>
+                            <th>Player ID</th>
+                            <th>Photo</th>
+                            <th>Name</th>
+                            <th>Age</th>
+                            <th>Date of Birth</th>
+                            <th>Team</th>
+                            <th>History</th>
+                        </tr>
+                        </thead>
+                        <tbody id="players-body"></tbody>
+                    </table>
+                </div>
+            </main>
+
+            <div class="footer">
+                &copy; 2026 Basketball League Management System
+            </div>
+        </div>
+
+        <script>
+            function toImageSrc(base64Value) {
+                if (!base64Value) {
+                    return "";
+                }
+                return "data:image/jpeg;base64," + base64Value;
+            }
+
+            async function loadPlayers() {
+                const status = document.getElementById("players-status");
+                const body = document.getElementById("players-body");
+
+                try {
+                    const [playersResponse, teamsResponse] = await Promise.all([
+                        fetch("/api/players"),
+                        fetch("/api/teams")
+                    ]);
+
+                    if (!playersResponse.ok || !teamsResponse.ok) {
+                        throw new Error("Unable to fetch players or teams data.");
+                    }
+
+                    const players = await playersResponse.json();
+                    const teams = await teamsResponse.json();
+
+                    const teamNameById = new Map();
+                    teams.forEach((team) => {
+                        teamNameById.set(team.clubId, team.teamName);
+                    });
+
+                    body.innerHTML = "";
+                    players.forEach((player) => {
+                        const row = document.createElement("tr");
+
+                        const middleName = player.middleName ? player.middleName + " " : "";
+                        const fullName = player.firstName + " " + middleName + player.lastName;
+                        const teamName = teamNameById.get(player.teamId) || "Unknown Team";
+
+                        row.innerHTML = `
+                            <td>${player.playerId}</td>
+                            <td>${player.playerPhoto ? '<img class="thumb-img" src="' + toImageSrc(player.playerPhoto) + '" alt="Player Photo">' : "N/A"}</td>
+                            <td>${fullName}</td>
+                            <td>${player.age}</td>
+                            <td>${new Date(player.dateOfBirth).toLocaleDateString()}</td>
+                            <td>${teamName}</td>
+                            <td>${player.playerHistory || "N/A"}</td>
+                        `;
+                        body.appendChild(row);
+                    });
+
+                    status.textContent = "Players loaded: " + players.length;
+                    status.className = "status-message status-success";
+                } catch (error) {
+                    status.textContent = "Failed to load players: " + error.message;
+                    status.className = "status-message status-error";
+                }
+            }
+
+            loadPlayers();
+        </script>
+    </body>
 </html>

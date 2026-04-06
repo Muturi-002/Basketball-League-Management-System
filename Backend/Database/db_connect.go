@@ -2,37 +2,77 @@ package database
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
+	"os"
+	"strings"
 )
-
-// NOTE: This file intentionally does not import or assume any specific
-// third-party Oracle driver. The caller is expected to register a driver
-// elsewhere in the application using only the tooling you choose.
 
 var db *sql.DB
 
-// Connect initializes a shared database handle for the application.
-// The driverName argument should match the name of a registered database
-// driver (for example, one you configure manually when wiring Oracle ATP).
 func Connect(driverName, dsn string) error {
-    if db != nil {
-        return nil
-    }
+	driverName = strings.TrimSpace(driverName)
+	dsn = strings.TrimSpace(dsn)
 
-    conn, err := sql.Open(driverName, dsn)
-    if err != nil {
-        return fmt.Errorf("open connection: %w", err)
-    }
+	if driverName == "" {
+		return errors.New("driver name is required")
+	}
+	if dsn == "" {
+		return errors.New("dsn is required")
+	}
 
-    if err := conn.Ping(); err != nil {
-        return fmt.Errorf("ping database: %w", err)
-    }
+	if db != nil {
+		return nil
+	}
 
-    db = conn
-    return nil
+	conn, err := sql.Open(driverName, dsn)
+	if err != nil {
+		return fmt.Errorf("open connection: %w", err)
+	}
+
+	if err := conn.Ping(); err != nil {
+		return fmt.Errorf("ping database: %w", err)
+	}
+
+	db = conn
+	return nil
+}
+
+func ConnectFromEnv() error {
+	driver := strings.TrimSpace(os.Getenv("ORACLE_DRIVER"))
+	if driver == "" {
+		driver = "oracle"
+	}
+
+	dsn := strings.TrimSpace(os.Getenv("ORACLE_DSN"))
+	if dsn == "" {
+		dsn = strings.TrimSpace(os.Getenv("BLMS_ORACLE_DSN"))
+	}
+	if dsn == "" {
+		return errors.New("missing ORACLE_DSN or BLMS_ORACLE_DSN")
+	}
+
+	return Connect(driver, dsn)
+}
+
+// EnsureConnected verifies that a database connection is active.
+func EnsureConnected() (*sql.DB, error) {
+	if db != nil {
+		return db, nil
+	}
+
+	if err := ConnectFromEnv(); err != nil {
+		return nil, err
+	}
+	return db, nil
 }
 
 // DB exposes the shared *sql.DB instance.
 func DB() *sql.DB {
-    return db
+	return db
+}
+
+// IsConnected reports whether a DB handle has been initialized.
+func IsConnected() bool {
+	return db != nil
 }

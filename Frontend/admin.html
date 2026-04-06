@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>BLMS - Admin</title>
+        <link rel="stylesheet" href="styles.css">
+    </head>
+    <body>
+        <header>
+            <div class="header-bar">
+                <div class="site-title">Basketball League Management System - Admin</div>
+                <a class="login-button" href="/auth.html">Login</a>
+            </div>
+        </header>
+
+        <div class="main-container">
+            <main>
+                <h1>Admin Console</h1>
+                <p>Create, update, and delete players, teams, stadiums, managers, fixtures, and stats.</p>
+
+                <div id="admin-status" class="status-message">Ready.</div>
+
+                <section class="card-section">
+                    <h2>Player Management</h2>
+                    <form class="data-form">
+                        <label>Player ID (required for update/delete)
+                            <input type="number" id="player-id" >
+                        </label>
+                        <label>First Name
+                            <input type="text" id="player-first-name">
+                        </label>
+                        <label>Middle Name (optional)
+                            <input type="text" id="player-middle-name">
+                        </label>
+                        <label>Last Name
+                            <input type="text" id="player-last-name">
+                        </label>
+                        <label>Date of Birth
+                            <input type="date" id="player-date-of-birth">
+                        </label>
+                        <label>Age
+                            <input type="number" id="player-age" min="0">
+                        </label>
+                        <label>Team ID
+                            <input type="number" id="player-team-id">
+                        </label>
+                        <label>Player Photo
+                            <textarea id="player-photo" rows="3" ></textarea>
+                        </label>
+                        <label>Player History
+                            <textarea id="player-history" rows="3"></textarea>
+                        </label>
+                        <div class="button-group">
+                            <button type="button" id="create-player">Create Player</button>
+                            <button type="button" id="update-player">Update Player</button>
+                            <button type="button" id="delete-player">Delete Player</button>
+                        </div>
+                    </form>
+                    <div class="table-wrapper">
+                        <table class="data-table">
+                            <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>DOB</th>
+                                <th>Age</th>
+                                <th>Team ID</th>
+                            </tr>
+                            </thead>
+                            <tbody id="players-admin-body"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section class="card-section">
+                    <h2>Team Management</h2>
+                    <form class="data-form">
+                        <label>Team ID (required)
+                            <input type="number" id="team-id">
+                        </label>
+                        <label>Team Name
+                            <input type="text" id="team-name">
+                        </label>
+                        <label>Team Logo 
+                            <textarea id="team-logo" rows="3" ></textarea>
+                        </label>
+                        <label>Club Manager ID
+                            <input type="number" id="team-manager-id">
+                        </label>
+                        <label>Club Manager Photo
+                            <textarea id="team-manager-photo" rows="3" ></textarea>
+                        </label>
+                        <label>Assistant Club Manager
+                            <input type="text" id="team-ass-manager">
+                        </label>
+                        <label>Assistant Manager Photo
+                            <textarea id="team-ass-manager-photo" rows="3" ></textarea>
+                        </label>
+                        <label>Club Location ID
+                            <input type="number" id="team-location-id">
+                        </label>
+                        <label>Club History
+                            <textarea id="team-history" rows="3"></textarea>
+                        </label>
+                        <div class="button-group">
+                            <button type="button" id="create-team">Create Team</button>
+                            <button type="button" id="update-team">Update Team</button>
+                            <button type="button" id="delete-team">Delete Team</button>
+                        </div>
+                    </form>
+                    <div class="table-wrapper">
+                        <table class="data-table">
+                            <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Team Name</th>
+                                <th>Manager ID</th>
+                                <th>Location ID</th>
+                            </tr>
+                            </thead>
+                            <tbody id="teams-admin-body"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section class="card-section">
+                    <h2>Stadium Management</h2>
+                    <form class="data-form">
+                        <label>Stadium ID (required)
+                            <input type="number" id="stadium-id">
+                        </label>
+                        <label>Stadium Name
+                            <input type="text" id="stadium-name">
+                        </label>
+                        <label>Stadium Location
+                            <input type="text" id="stadium-location">
+                        </label>
+                        <label>Associated Club
+                            <input type="text" id="stadium-associated-club">
+                        </label>
+                        <div class="button-group">
+                            <button type="button" id="create-stadium">Create Stadium</button>
+                            <button type="button" id="update-stadium">Update Stadium</button>
+                            <button type="button" id="delete-stadium">Delete Stadium</button>
+                        </div>
+                    </form>
+                    <div class="table-wrapper">
+                        <table class="data-table">
+                            <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Location</th>
+                                <th>Associated Club</th>
+                            </tr>
+                            </thead>
+                            <tbody id="stadiums-admin-body"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section class="card-section">
+                    <h2>Manager Management</h2>
+                    <form class="data-form">
+                        <label>Manager ID (required for update/delete)
+                            <input type="number" id="manager-id">
+                        </label>
+                        <label>First Name
+                            <input type="text" id="manager-first-name">
+                        </label>
+                        <label>Middle Name (optional)
+                            <input type="text" id="manager-middle-name">
+                        </label>
+                        <label>Last Name
+                            <input type="text" id="manager-last-name">
+                        </label>
+                        <label>Manager Type
+                            <input type="text" id="manager-type" placeholder="Head Coach, Assistant Coach...">
+                        </label>
+                        <label>Team ID
+                            <input type="number" id="manager-team-id">
+                        </label>
+                        <label>Manager Photo
+                            <textarea id="manager-photo" rows="3"></textarea>
+                        </label>
+                        <label>Manager History
+                            <textarea id="manager-history" rows="3"></textarea>
+                        </label>
+                        <div class="button-group">
+                            <button type="button" id="create-manager">Create Manager</button>
+                            <button type="button" id="update-manager">Update Manager</button>
+                            <button type="button" id="delete-manager">Delete Manager</button>
+                        </div>
+                    </form>
+                    <div class="table-wrapper">
+                        <table class="data-table">
+                            <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Type</th>
+                                <th>Team ID</th>
+                            </tr>
+                            </thead>
+                            <tbody id="managers-admin-body"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section class="card-section">
+                    <h2>Fixture Management</h2>
+                    <form class="data-form">
+                        <label>Fixture ID (required for update/delete)
+                            <input type="number" id="fixture-id">
+                        </label>
+                        <label>Fixture Date
+                            <input type="date" id="fixture-date">
+                        </label>
+                        <label>Fixture Time
+                            <input type="time" id="fixture-time">
+                        </label>
+                        <label>Home Team ID
+                            <input type="number" id="fixture-home-team-id">
+                        </label>
+                        <label>Away Team ID
+                            <input type="number" id="fixture-away-team-id">
+                        </label>
+                        <label>Fixture Location
+                            <input type="text" id="fixture-location" placeholder="Arena/Stadium">
+                        </label>
+                        <div class="button-group">
+                            <button type="button" id="create-fixture">Create Fixture</button>
+                            <button type="button" id="update-fixture">Update Fixture</button>
+                            <button type="button" id="delete-fixture">Delete Fixture</button>
+                        </div>
+                    </form>
+                    <div class="table-wrapper">
+                        <table class="data-table">
+                            <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Date</th>
+                                <th>Time</th>
+                                <th>Home Team</th>
+                                <th>Away Team</th>
+                                <th>Location</th>
+                            </tr>
+                            </thead>
+                            <tbody id="fixture-admin-body"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section class="card-section">
+                    <h2>Results Management (Stats)</h2>
+                    <form class="data-form">
+                        <label>Stat ID (required for update/delete)
+                            <input type="number" id="stat-id">
+                        </label>
+                        <label>Team ID
+                            <input type="number" id="stat-team-id">
+                        </label>
+                        <label>Games Played
+                            <input type="number" id="stat-games-played" min="0">
+                        </label>
+                        <label>Wins
+                            <input type="number" id="stat-wins" min="0">
+                        </label>
+                        <label>Losses
+                            <input type="number" id="stat-losses" min="0">
+                        </label>
+                        <label>Points
+                            <input type="number" id="stat-points" min="0">
+                        </label>
+                        <label>Points Scored
+                            <input type="number" id="stat-points-scored" min="0">
+                        </label>
+                        <label>Points Allowed
+                            <input type="number" id="stat-points-allowed" min="0">
+                        </label>
+                        <div class="button-group">
+                            <button type="button" id="create-stat">Create Result</button>
+                            <button type="button" id="update-stat">Update Result</button>
+                            <button type="button" id="delete-stat">Delete Result</button>
+                        </div>
+                    </form>
+                    <div class="table-wrapper">
+                        <table class="data-table">
+                            <thead>
+                            <tr>
+                                <th>Stat ID</th>
+                                <th>Team ID</th>
+                                <th>GP</th>
+                                <th>W</th>
+                                <th>L</th>
+                                <th>Pts</th>
+                                <th>Scored</th>
+                                <th>Allowed</th>
+                            </tr>
+                            </thead>
+                            <tbody id="stats-admin-body"></tbody>
+                        </table>
+                    </div>
+                </section>
+            </main>
+            <div class="footer">
+                &copy; 2026 Basketball League Management System
+            </div>
+        </div>
+
+        <script>
+            function toNumber(value) {
+                if (value === "" || value == null) {
+                    return 0;
+                }
+                return Number(value);
+            }
+
+            function normalizeBase64(value) {
+                if (!value) {
+                    return "";
+                }
+                const trimmed = value.trim();
+                const commaIndex = trimmed.indexOf(",");
+                if (commaIndex > -1 && trimmed.startsWith("data:")) {
+                    return trimmed.slice(commaIndex + 1);
+                }
+                return trimmed;
+            }
+
+            function nullableText(value) {
+                const trimmed = (value || "").trim();
+                return trimmed === "" ? null : trimmed;
+            }
+
+            function formatDate(value) {
+                if (!value) {
+                    return "N/A";
+                }
+                const parsed = new Date(value);
+                if (Number.isNaN(parsed.getTime())) {
+                    return "N/A";
+                }
+                return parsed.toLocaleDateString();
+            }
+
+            function formatTime(value) {
+                if (!value) {
+                    return "N/A";
+                }
+                const parsed = new Date(value);
+                if (Number.isNaN(parsed.getTime())) {
+                    return "N/A";
+                }
+                return parsed.toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"});
+            }
+
+            function hasLogo(value) {
+                return value && value.length > 0 ? "Yes" : "No";
+            }
+
+            function playerPayload() {
+                const playerId = toNumber(document.getElementById("player-id").value);
+                const dobValue = document.getElementById("player-date-of-birth").value;
+
+                return {
+                    playerId: playerId,
+                    firstName: document.getElementById("player-first-name").value.trim(),
+                    middleName: nullableText(document.getElementById("player-middle-name").value),
+                    lastName: document.getElementById("player-last-name").value.trim(),
+                    playerPhoto: normalizeBase64(document.getElementById("player-photo").value),
+                    dateOfBirth: dobValue ? new Date(dobValue + "T00:00:00").toISOString() : new Date().toISOString(),
+                    age: toNumber(document.getElementById("player-age").value),
+                    teamId: toNumber(document.getElementById("player-team-id").value),
+                    playerHistory: document.getElementById("player-history").value.trim()
+                };
+            }
+
+            function teamPayload() {
+                return {
+                    clubId: toNumber(document.getElementById("team-id").value),
+                    teamName: document.getElementById("team-name").value.trim(),
+                    teamLogo: normalizeBase64(document.getElementById("team-logo").value),
+                    clubManagerId: toNumber(document.getElementById("team-manager-id").value),
+                    clubManagerPhoto: normalizeBase64(document.getElementById("team-manager-photo").value),
+                    assClubManager: document.getElementById("team-ass-manager").value.trim(),
+                    assClubManagerPhoto: normalizeBase64(document.getElementById("team-ass-manager-photo").value),
+                    clubLocationId: toNumber(document.getElementById("team-location-id").value),
+                    clubHistory: document.getElementById("team-history").value.trim()
+                };
+            }
+
+            function stadiumPayload() {
+                return {
+                    stadiumId: toNumber(document.getElementById("stadium-id").value),
+                    stadiumName: document.getElementById("stadium-name").value.trim(),
+                    stadiumLocation: document.getElementById("stadium-location").value.trim(),
+                    associatedClub: document.getElementById("stadium-associated-club").value.trim()
+                };
+            }
+
+            function managerPayload() {
+                return {
+                    managerId: toNumber(document.getElementById("manager-id").value),
+                    firstName: document.getElementById("manager-first-name").value.trim(),
+                    middleName: nullableText(document.getElementById("manager-middle-name").value),
+                    lastName: document.getElementById("manager-last-name").value.trim(),
+                    managerPhoto: normalizeBase64(document.getElementById("manager-photo").value),
+                    managerType: document.getElementById("manager-type").value.trim(),
+                    teamId: toNumber(document.getElementById("manager-team-id").value),
+                    managerHistory: document.getElementById("manager-history").value.trim()
+                };
+            }
+
+            function fixturePayload() {
+                const fixtureID = toNumber(document.getElementById("fixture-id").value);
+                const dateValue = document.getElementById("fixture-date").value;
+                const timeValue = document.getElementById("fixture-time").value;
+
+                return {
+                    fixtureId: fixtureID,
+                    fixtureDate: dateValue ? new Date(dateValue + "T00:00:00").toISOString() : new Date().toISOString(),
+                    fixtureTime: timeValue ? new Date("1970-01-01T" + timeValue + ":00").toISOString() : new Date("1970-01-01T00:00:00").toISOString(),
+                    homeTeamId: Number(document.getElementById("fixture-home-team-id").value),
+                    awayTeamId: Number(document.getElementById("fixture-away-team-id").value),
+                    fixtureLocation: document.getElementById("fixture-location").value.trim(),
+                    
+                };
+            }
+
+            function statPayload() {
+                return {
+                    statId: toNumber(document.getElementById("stat-id").value),
+                    teamId: toNumber(document.getElementById("stat-team-id").value),
+                    gamesPlayed: toNumber(document.getElementById("stat-games-played").value),
+                    wins: toNumber(document.getElementById("stat-wins").value),
+                    losses: toNumber(document.getElementById("stat-losses").value),
+                    points: toNumber(document.getElementById("stat-points").value),
+                    pointsScored: toNumber(document.getElementById("stat-points-scored").value),
+                    pointsAllowed: toNumber(document.getElementById("stat-points-allowed").value)
+                };
+            }
+
+            function setStatus(message, isError) {
+                const status = document.getElementById("admin-status");
+                status.textContent = message;
+                status.className = "status-message " + (isError ? "status-error" : "status-success");
+            }
+
+            async function requestJSON(url, method, payload) {
+                const options = {
+                    method: method,
+                    headers: {"Content-Type": "application/json"}
+                };
+                if (payload) {
+                    options.body = JSON.stringify(payload);
+                }
+
+                const response = await fetch(url, options);
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(errorText || ("Request failed with status " + response.status));
+                }
+
+                const contentType = response.headers.get("content-type") || "";
+                if (contentType.includes("application/json")) {
+                    return response.json();
+                }
+                return null;
+            }
+
+            async function loadAdminTables() {
+                const playersBody = document.getElementById("players-admin-body");
+                const teamsBody = document.getElementById("teams-admin-body");
+                const stadiumsBody = document.getElementById("stadiums-admin-body");
+                const managersBody = document.getElementById("managers-admin-body");
+                const fixtureBody = document.getElementById("fixture-admin-body");
+                const statsBody = document.getElementById("stats-admin-body");
+
+                const [playersResponse, teamsResponse, stadiumsResponse, managersResponse, fixturesResponse, statsResponse] = await Promise.all([
+                    fetch("/api/players"),
+                    fetch("/api/teams"),
+                    fetch("/api/stadiums"),
+                    fetch("/api/managers"),
+                    fetch("/api/fixtures"),
+                    fetch("/api/stats")
+                ]);
+
+                if (!playersResponse.ok || !teamsResponse.ok || !stadiumsResponse.ok || !managersResponse.ok || !fixturesResponse.ok || !statsResponse.ok) {
+                    throw new Error("Failed to load admin table data.");
+                }
+
+                const players = await playersResponse.json();
+                const teams = await teamsResponse.json();
+                const stadiums = await stadiumsResponse.json();
+                const managers = await managersResponse.json();
+                const fixtures = await fixturesResponse.json();
+                const stats = await statsResponse.json();
+
+                playersBody.innerHTML = "";
+                players.forEach((player) => {
+                    const middleName = player.middleName ? " " + player.middleName : "";
+                    const row = document.createElement("tr");
+                    row.innerHTML = `
+                        <td>${player.playerId}</td>
+                        <td>${player.firstName}${middleName} ${player.lastName}</td>
+                        <td>${formatDate(player.dateOfBirth)}</td>
+                        <td>${player.age}</td>
+                        <td>${player.teamId}</td>
+                    `;
+                    playersBody.appendChild(row);
+                });
+
+                teamsBody.innerHTML = "";
+                teams.forEach((team) => {
+                    const row = document.createElement("tr");
+                    row.innerHTML = `
+                        <td>${team.clubId}</td>
+                        <td>${team.teamName}</td>
+                        <td>${team.clubManagerId}</td>
+                        <td>${team.clubLocationId}</td>
+                    `;
+                    teamsBody.appendChild(row);
+                });
+
+                stadiumsBody.innerHTML = "";
+                stadiums.forEach((stadium) => {
+                    const row = document.createElement("tr");
+                    row.innerHTML = `
+                        <td>${stadium.stadiumId}</td>
+                        <td>${stadium.stadiumName}</td>
+                        <td>${stadium.stadiumLocation}</td>
+                        <td>${stadium.associatedClub}</td>
+                    `;
+                    stadiumsBody.appendChild(row);
+                });
+
+                managersBody.innerHTML = "";
+                managers.forEach((manager) => {
+                    const middleName = manager.middleName ? " " + manager.middleName : "";
+                    const row = document.createElement("tr");
+                    row.innerHTML = `
+                        <td>${manager.managerId}</td>
+                        <td>${manager.firstName}${middleName} ${manager.lastName}</td>
+                        <td>${manager.managerType}</td>
+                        <td>${manager.teamId}</td>
+                    `;
+                    managersBody.appendChild(row);
+                });
+
+                fixtureBody.innerHTML = "";
+                fixtures.forEach((fixture) => {
+                    const row = document.createElement("tr");
+                    row.innerHTML = `
+                        <td>${fixture.fixtureId}</td>
+                        <td>${formatDate(fixture.fixtureDate)}</td>
+                        <td>${formatTime(fixture.fixtureTime)}</td>
+                        <td>${fixture.homeTeamId}</td>
+                        <td>${fixture.awayTeamId}</td>
+                        <td>${fixture.fixtureLocation || "N/A"}</td>
+                    `;
+                    fixtureBody.appendChild(row);
+                });
+
+                statsBody.innerHTML = "";
+                stats.forEach((stat) => {
+                    const row = document.createElement("tr");
+                    row.innerHTML = `
+                        <td>${stat.statId}</td>
+                        <td>${stat.teamId}</td>
+                        <td>${stat.gamesPlayed}</td>
+                        <td>${stat.wins}</td>
+                        <td>${stat.losses}</td>
+                        <td>${stat.points}</td>
+                        <td>${stat.pointsScored}</td>
+                        <td>${stat.pointsAllowed}</td>
+                    `;
+                    statsBody.appendChild(row);
+                });
+            }
+
+            document.getElementById("create-player").addEventListener("click", async () => {
+                try {
+                    await requestJSON("/api/admin/players", "POST", playerPayload());
+                    await loadAdminTables();
+                    setStatus("Player created successfully.", false);
+                } catch (error) {
+                    setStatus("Create player failed: " + error.message, true);
+                }
+            });
+
+            document.getElementById("update-player").addEventListener("click", async () => {
+                try {
+                    const playerID = toNumber(document.getElementById("player-id").value);
+                    if (!playerID) {
+                        throw new Error("Player ID is required for update.");
+                    }
+                    await requestJSON("/api/admin/players/" + playerID, "PUT", playerPayload());
+                    await loadAdminTables();
+                    setStatus("Player updated successfully.", false);
+                } catch (error) {
+                    setStatus("Update player failed: " + error.message, true);
+                }
+            });
+
+            document.getElementById("delete-player").addEventListener("click", async () => {
+                try {
+                    const playerID = toNumber(document.getElementById("player-id").value);
+                    if (!playerID) {
+                        throw new Error("Player ID is required for delete.");
+                    }
+                    await requestJSON("/api/admin/players/" + playerID, "DELETE");
+                    await loadAdminTables();
+                    setStatus("Player deleted successfully.", false);
+                } catch (error) {
+                    setStatus("Delete player failed: " + error.message, true);
+                }
+            });
+
+            document.getElementById("create-team").addEventListener("click", async () => {
+                try {
+                    await requestJSON("/api/admin/teams", "POST", teamPayload());
+                    await loadAdminTables();
+                    setStatus("Team created successfully.", false);
+                } catch (error) {
+                    setStatus("Create team failed: " + error.message, true);
+                }
+            });
+
+            document.getElementById("update-team").addEventListener("click", async () => {
+                try {
+                    const teamID = toNumber(document.getElementById("team-id").value);
+                    if (!teamID) {
+                        throw new Error("Team ID is required for update.");
+                    }
+                    await requestJSON("/api/admin/teams/" + teamID, "PUT", teamPayload());
+                    await loadAdminTables();
+                    setStatus("Team updated successfully.", false);
+                } catch (error) {
+                    setStatus("Update team failed: " + error.message, true);
+                }
+            });
+
+            document.getElementById("delete-team").addEventListener("click", async () => {
+                try {
+                    const teamID = toNumber(document.getElementById("team-id").value);
+                    if (!teamID) {
+                        throw new Error("Team ID is required for delete.");
+                    }
+                    await requestJSON("/api/admin/teams/" + teamID, "DELETE");
+                    await loadAdminTables();
+                    setStatus("Team deleted successfully.", false);
+                } catch (error) {
+                    setStatus("Delete team failed: " + error.message, true);
+                }
+            });
+
+            document.getElementById("create-stadium").addEventListener("click", async () => {
+                try {
+                    await requestJSON("/api/admin/stadiums", "POST", stadiumPayload());
+                    await loadAdminTables();
+                    setStatus("Stadium created successfully.", false);
+                } catch (error) {
+                    setStatus("Create stadium failed: " + error.message, true);
+                }
+            });
+
+            document.getElementById("update-stadium").addEventListener("click", async () => {
+                try {
+                    const stadiumID = toNumber(document.getElementById("stadium-id").value);
+                    if (!stadiumID) {
+                        throw new Error("Stadium ID is required for update.");
+                    }
+                    await requestJSON("/api/admin/stadiums/" + stadiumID, "PUT", stadiumPayload());
+                    await loadAdminTables();
+                    setStatus("Stadium updated successfully.", false);
+                } catch (error) {
+                    setStatus("Update stadium failed: " + error.message, true);
+                }
+            });
+
+            document.getElementById("delete-stadium").addEventListener("click", async () => {
+                try {
+                    const stadiumID = toNumber(document.getElementById("stadium-id").value);
+                    if (!stadiumID) {
+                        throw new Error("Stadium ID is required for delete.");
+                    }
+                    await requestJSON("/api/admin/stadiums/" + stadiumID, "DELETE");
+                    await loadAdminTables();
+                    setStatus("Stadium deleted successfully.", false);
+                } catch (error) {
+                    setStatus("Delete stadium failed: " + error.message, true);
+                }
+            });
+
+            document.getElementById("create-manager").addEventListener("click", async () => {
+                try {
+                    await requestJSON("/api/admin/managers", "POST", managerPayload());
+                    await loadAdminTables();
+                    setStatus("Manager created successfully.", false);
+                } catch (error) {
+                    setStatus("Create manager failed: " + error.message, true);
+                }
+            });
+
+            document.getElementById("update-manager").addEventListener("click", async () => {
+                try {
+                    const managerID = toNumber(document.getElementById("manager-id").value);
+                    if (!managerID) {
+                        throw new Error("Manager ID is required for update.");
+                    }
+                    await requestJSON("/api/admin/managers/" + managerID, "PUT", managerPayload());
+                    await loadAdminTables();
+                    setStatus("Manager updated successfully.", false);
+                } catch (error) {
+                    setStatus("Update manager failed: " + error.message, true);
+                }
+            });
+
+            document.getElementById("delete-manager").addEventListener("click", async () => {
+                try {
+                    const managerID = toNumber(document.getElementById("manager-id").value);
+                    if (!managerID) {
+                        throw new Error("Manager ID is required for delete.");
+                    }
+                    await requestJSON("/api/admin/managers/" + managerID, "DELETE");
+                    await loadAdminTables();
+                    setStatus("Manager deleted successfully.", false);
+                } catch (error) {
+                    setStatus("Delete manager failed: " + error.message, true);
+                }
+            });
+
+            document.getElementById("create-fixture").addEventListener("click", async () => {
+                try {
+                    await requestJSON("/api/admin/fixtures", "POST", fixturePayload());
+                    await loadAdminTables();
+                    setStatus("Fixture created successfully.", false);
+                } catch (error) {
+                    setStatus("Create fixture failed: " + error.message, true);
+                }
+            });
+
+            document.getElementById("update-fixture").addEventListener("click", async () => {
+                try {
+                    const fixtureID = toNumber(document.getElementById("fixture-id").value);
+                    if (!fixtureID) {
+                        throw new Error("Fixture ID is required for update.");
+                    }
+                    await requestJSON("/api/admin/fixtures/" + fixtureID, "PUT", fixturePayload());
+                    await loadAdminTables();
+                    setStatus("Fixture updated successfully.", false);
+                } catch (error) {
+                    setStatus("Update fixture failed: " + error.message, true);
+                }
+            });
+
+            document.getElementById("delete-fixture").addEventListener("click", async () => {
+                try {
+                    const fixtureID = toNumber(document.getElementById("fixture-id").value);
+                    if (!fixtureID) {
+                        throw new Error("Fixture ID is required for delete.");
+                    }
+                    await requestJSON("/api/admin/fixtures/" + fixtureID, "DELETE");
+                    await loadAdminTables();
+                    setStatus("Fixture deleted successfully.", false);
+                } catch (error) {
+                    setStatus("Delete fixture failed: " + error.message, true);
+                }
+            });
+
+            document.getElementById("create-stat").addEventListener("click", async () => {
+                try {
+                    await requestJSON("/api/admin/stats", "POST", statPayload());
+                    await loadAdminTables();
+                    setStatus("Result created successfully.", false);
+                } catch (error) {
+                    setStatus("Create result failed: " + error.message, true);
+                }
+            });
+
+            document.getElementById("update-stat").addEventListener("click", async () => {
+                try {
+                    const statID = toNumber(document.getElementById("stat-id").value);
+                    if (!statID) {
+                        throw new Error("Stat ID is required for update.");
+                    }
+                    await requestJSON("/api/admin/stats/" + statID, "PUT", statPayload());
+                    await loadAdminTables();
+                    setStatus("Result updated successfully.", false);
+                } catch (error) {
+                    setStatus("Update result failed: " + error.message, true);
+                }
+            });
+
+            document.getElementById("delete-stat").addEventListener("click", async () => {
+                try {
+                    const statID = toNumber(document.getElementById("stat-id").value);
+                    if (!statID) {
+                        throw new Error("Stat ID is required for delete.");
+                    }
+                    await requestJSON("/api/admin/stats/" + statID, "DELETE");
+                    await loadAdminTables();
+                    setStatus("Result deleted successfully.", false);
+                } catch (error) {
+                    setStatus("Delete result failed: " + error.message, true);
+                }
+            });
+
+            loadAdminTables().then(() => {
+                setStatus("Admin data loaded.", false);
+            }).catch((error) => {
+                setStatus("Admin initialization failed: " + error.message, true);
+            });
+        </script>
+    </body>
+</html>
