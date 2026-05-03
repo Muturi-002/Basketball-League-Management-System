@@ -55,7 +55,7 @@ func main() {
 	mux.HandleFunc("/internal/admin.html", adminPageHandler)
 	mux.HandleFunc("/", frontendHandler)
 
-	addr := ":8080"
+	addr := ":4000"
 	log.Printf("Starting server on %s...", addr)
 	if err := http.ListenAndServe(addr, mux); err != nil {
 		log.Fatal(err)
