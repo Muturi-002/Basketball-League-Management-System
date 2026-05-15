@@ -59,7 +59,6 @@ jobs:
           ssh -o StrictHostKeyChecking=no -i private-key ${SERVER_USER}@${SERVER_IP} '
             if [ -d '${REPO_PATH}' ]; then
               rm -rf ${REPO_PATH}
-            else
               git clone https://github.com/Muturi-002/Basketball-League-Management-System.git
               cd ${REPO_PATH}
               rm -rf .github/
