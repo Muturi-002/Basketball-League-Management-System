@@ -17,7 +17,7 @@ env:
 
 jobs:
   install:
-    runs-on: oraclelinux/ol9
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -51,7 +51,7 @@ jobs:
     
   deploy:
     needs: install
-    runs-on: oraclelinux/ol9
+    runs-on: ubuntu-latest
     steps:
       - name: Update application repo and run server
         run: |
