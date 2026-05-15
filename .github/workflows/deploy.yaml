@@ -60,9 +60,11 @@ jobs:
             if [ -d '${REPO_PATH}' ]; then
               cd '${REPO_PATH}'
               git pull origin prod
+              rm -rf .github/
             else
               git clone https://github.com/Muturi-002/Basketball-League-Management-System.git
               cd ${REPO_PATH}
+              rm -rf .github/
             fi
             cd '${REPO_PATH}/Backend'
             pkill -f './blms' || true
