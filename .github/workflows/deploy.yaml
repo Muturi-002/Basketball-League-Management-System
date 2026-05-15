@@ -64,7 +64,7 @@ jobs:
               git clone https://github.com/Muturi-002/Basketball-League-Management-System.git
               cd ${REPO_PATH}
             fi
-            cd Backend
+            cd ${REPO_PATH}/Backend
             pkill -f './blms' || true
             go build -o blms .
             nohup ./blms > backend.log 2>&1 &
