@@ -37,19 +37,19 @@ func main() {
 	mux.HandleFunc("/api/fixtures/", fixtureByIDHandler)
 	mux.HandleFunc("/api/auth/users", usersHandler)
 
-	// Admin write APIs.
-	mux.HandleFunc("/api/admin/players", adminPlayersHandler)
-	mux.HandleFunc("/api/admin/players/", adminPlayerByIDHandler)
-	mux.HandleFunc("/api/admin/teams", adminTeamsHandler)
-	mux.HandleFunc("/api/admin/teams/", adminTeamByIDHandler)
-	mux.HandleFunc("/api/admin/stadiums", adminStadiumsHandler)
-	mux.HandleFunc("/api/admin/stadiums/", adminStadiumByIDHandler)
-	mux.HandleFunc("/api/admin/managers", adminManagersHandler)
-	mux.HandleFunc("/api/admin/managers/", adminManagerByIDHandler)
-	mux.HandleFunc("/api/admin/stats", adminStatsHandler)
-	mux.HandleFunc("/api/admin/stats/", adminStatByIDHandler)
-	mux.HandleFunc("/api/admin/fixtures", adminFixturesHandler)
-	mux.HandleFunc("/api/admin/fixtures/", adminFixtureByIDHandler)
+	// Admin write APIs - redirect to admin service on port 4900
+	mux.HandleFunc("/api/admin/players", adminRedirectHandler)
+	mux.HandleFunc("/api/admin/players/", adminRedirectHandler)
+	mux.HandleFunc("/api/admin/teams", adminRedirectHandler)
+	mux.HandleFunc("/api/admin/teams/", adminRedirectHandler)
+	mux.HandleFunc("/api/admin/stadiums", adminRedirectHandler)
+	mux.HandleFunc("/api/admin/stadiums/", adminRedirectHandler)
+	mux.HandleFunc("/api/admin/managers", adminRedirectHandler)
+	mux.HandleFunc("/api/admin/managers/", adminRedirectHandler)
+	mux.HandleFunc("/api/admin/stats", adminRedirectHandler)
+	mux.HandleFunc("/api/admin/stats/", adminRedirectHandler)
+	mux.HandleFunc("/api/admin/fixtures", adminRedirectHandler)
+	mux.HandleFunc("/api/admin/fixtures/", adminRedirectHandler)
 
 	// Frontend pages and assets.
 	mux.HandleFunc("/internal/admin.html", adminPageHandler)
@@ -57,9 +57,24 @@ func main() {
 
 	addr := ":4000"
 	log.Printf("Starting server on %s...", addr)
-	if err := http.ListenAndServe(addr, mux); err != nil {
+	if err := http.ListenAndServe(addr, withCORS(mux)); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func withCORS(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }
 
 func writeJSON(w http.ResponseWriter, status int, value interface{}) {
@@ -130,6 +145,17 @@ func adminPageHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.ServeFile(w, r, "../Frontend/admin.html")
+}
+
+func adminRedirectHandler(w http.ResponseWriter, r *http.Request) {
+	// Construct the redirect URL to the admin service on port 4900
+	redirectURL := "http://localhost:4900" + r.URL.Path
+	if r.URL.RawQuery != "" {
+		redirectURL += "?" + r.URL.RawQuery
+	}
+
+	// Preserve the request method for the redirect (307 Temporary Redirect)
+	http.Redirect(w, r, redirectURL, http.StatusTemporaryRedirect)
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
@@ -356,6 +382,7 @@ func statsHandler(w http.ResponseWriter, r *http.Request) {
 
 	stats, err := db.ListStats()
 	if err != nil {
+		log.Printf("stats handler: failed to load stats: %v", err)
 		writeError(w, http.StatusInternalServerError, "failed to load stats")
 		return
 	}

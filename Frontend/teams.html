@@ -9,7 +9,7 @@
     <body>
         <header>
             <div class="header-bar">
-                <div class="site-title">Basketball League Management System</div>
+                <div class="site-title">KBF- Premier League</div>
                 <nav>
                     <ul>
                         <li><a href="home.html">Home</a></li>
@@ -40,8 +40,6 @@
                             <th>Team Name</th>
                             <th>Manager</th>
                             <th>Manager Photo</th>
-                            <th>Assistant Manager</th>
-                            <th>Assistant Photo</th>
                             <th>History</th>
                         </tr>
                         </thead>
@@ -56,17 +54,22 @@
         </div>
 
         <script>
-            function toImageSrc(base64Value) {
-                if (!base64Value) {
-                    return "";
-                }
-                return "data:image/jpeg;base64," + base64Value;
+            const API_BASE = (window.location.protocol === "file:" || window.location.port !== "4000")
+                ? "http://localhost:4000"
+                : "";
+
+            function apiUrl(path) {
+                return API_BASE + path;
+            }
+
+            // Photos and logos are OCI Object Storage URLs — use directly as src.
+            function imgTag(url, alt, cssClass) {
+                if (!url) return "N/A";
+                return '<img class="' + cssClass + '" src="' + url + '" alt="' + alt + '">';
             }
 
             function managerLabel(manager) {
-                if (!manager) {
-                    return "View Manager";
-                }
+                if (!manager) return "N/A";
                 const middle = manager.middleName ? " " + manager.middleName : "";
                 return manager.firstName + middle + " " + manager.lastName;
             }
@@ -77,8 +80,8 @@
 
                 try {
                     const [teamsResponse, managersResponse] = await Promise.all([
-                        fetch("/api/teams"),
-                        fetch("/api/managers")
+                        fetch(apiUrl("/api/teams")),
+                        fetch(apiUrl("/api/managers"))
                     ]);
 
                     if (!teamsResponse.ok || !managersResponse.ok) {
@@ -87,23 +90,28 @@
 
                     const teams = await teamsResponse.json();
                     const managers = await managersResponse.json();
+
+                    // Index managers by their ID for O(1) lookup.
                     const managerByID = new Map();
-                    managers.forEach((manager) => {
-                        managerByID.set(manager.managerId, manager);
-                    });
+                    managers.forEach((m) => managerByID.set(m.managerId, m));
 
                     body.innerHTML = "";
                     teams.forEach((team) => {
-                        const manager = managerByID.get(team.clubManagerId);
+                        // clubManagerId is *int64 (omitempty) — may be absent when NULL.
+                        const managerID = team.clubManagerId ?? null;
+                        const manager = managerID !== null ? managerByID.get(managerID) : null;
+
+                        const managerCell = managerID !== null
+                            ? `<a href="manager.html?id=${managerID}">${managerLabel(manager)}</a>`
+                            : "N/A";
+
                         const row = document.createElement("tr");
                         row.innerHTML = `
                             <td>${team.clubId}</td>
-                            <td>${team.teamLogo ? '<img class="thumb-img" src="' + toImageSrc(team.teamLogo) + '" alt="Team Logo">' : "N/A"}</td>
+                            <td>${imgTag(team.teamLogo, "Team Logo", "thumb-img")}</td>
                             <td>${team.teamName}</td>
-                            <td><a href="manager.html?id=${team.clubManagerId}">${managerLabel(manager)}</a></td>
-                            <td>${team.clubManagerPhoto ? '<img class="thumb-img" src="' + toImageSrc(team.clubManagerPhoto) + '" alt="Manager Photo">' : "N/A"}</td>
-                            <td>${team.assClubManager || "N/A"}</td>
-                            <td>${team.assClubManagerPhoto ? '<img class="thumb-img" src="' + toImageSrc(team.assClubManagerPhoto) + '" alt="Assistant Manager Photo">' : "N/A"}</td>
+                            <td>${managerCell}</td>
+                            <td>${imgTag(team.clubManagerPhoto, "Manager Photo", "thumb-img")}</td>
                             <td>${team.clubHistory || "N/A"}</td>
                         `;
                         body.appendChild(row);

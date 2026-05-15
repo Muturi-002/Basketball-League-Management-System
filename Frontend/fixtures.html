@@ -9,7 +9,7 @@
     <body>
         <header>
             <div class="header-bar">
-                <div class="site-title">Basketball League Management System</div>
+                <div class="site-title">KBF- Premier League</div>
                 <nav>
                     <ul>
                         <li><a href="home.html">Home</a></li>
@@ -38,10 +38,12 @@
                             <th>Fixture ID</th>
                             <th>Date</th>
                             <th>Time</th>
+                            <th>Status</th>
                             <th>Home Team</th>
                             <th>Home Logo</th>
                             <th>Away Team</th>
                             <th>Away Logo</th>
+                            <th>Score</th>
                             <th>Location</th>
                         </tr>
                         </thead>
@@ -51,16 +53,33 @@
             </main>
 
             <div class="footer">
-                &copy; 2026 Basketball League Management System
+                &copy; 2026 Kenya Basketball Federation (KBF)- Premier League
             </div>
         </div>
 
         <script>
-            function toImageSrc(base64Value) {
-                if (!base64Value) {
-                    return "";
-                }
-                return "data:image/jpeg;base64," + base64Value;
+            const API_BASE = (window.location.protocol === "file:" || window.location.port !== "4000")
+                ? "http://localhost:4000"
+                : "";
+
+            function apiUrl(path) {
+                return API_BASE + path;
+            }
+
+            // Logos are OCI Object Storage URLs — use directly as src.
+            function imgTag(url, alt, cssClass) {
+                if (!url) return "N/A";
+                return '<img class="' + cssClass + '" src="' + url + '" alt="' + alt + '">';
+            }
+
+            // Map fixture_status values to readable labels.
+            const STATUS_LABEL = { SCHEDULED: "Scheduled", LIVE: "Live", COMPLETED: "Completed" };
+
+            function scoreCell(fixture) {
+                if (fixture.fixtureStatus === "SCHEDULED") return "—";
+                const h = fixture.homeScore ?? "?";
+                const a = fixture.awayScore ?? "?";
+                return h + " – " + a;
             }
 
             async function loadFixtures() {
@@ -69,8 +88,8 @@
 
                 try {
                     const [fixturesResponse, teamsResponse] = await Promise.all([
-                        fetch("/api/fixtures"),
-                        fetch("/api/teams")
+                        fetch(apiUrl("/api/fixtures")),
+                        fetch(apiUrl("/api/teams"))
                     ]);
 
                     if (!fixturesResponse.ok || !teamsResponse.ok) {
@@ -79,10 +98,9 @@
 
                     const fixtures = await fixturesResponse.json();
                     const teams = await teamsResponse.json();
+
                     const teamNameById = new Map();
-                    teams.forEach((team) => {
-                        teamNameById.set(team.clubId, team.teamName);
-                    });
+                    teams.forEach((team) => teamNameById.set(team.clubId, team.teamName));
 
                     body.innerHTML = "";
                     fixtures.forEach((fixture) => {
@@ -91,10 +109,12 @@
                             <td>${fixture.fixtureId}</td>
                             <td>${new Date(fixture.fixtureDate).toLocaleDateString()}</td>
                             <td>${new Date(fixture.fixtureTime).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"})}</td>
+                            <td>${STATUS_LABEL[fixture.fixtureStatus] || fixture.fixtureStatus}</td>
                             <td>${teamNameById.get(fixture.homeTeamId) || fixture.homeTeamId}</td>
-                            <td>${fixture.homeTeamLogo ? '<img class="thumb-img" src="' + toImageSrc(fixture.homeTeamLogo) + '" alt="Home Team Logo">' : "N/A"}</td>
+                            <td>${imgTag(fixture.homeTeamLogo, "Home Team Logo", "thumb-img")}</td>
                             <td>${teamNameById.get(fixture.awayTeamId) || fixture.awayTeamId}</td>
-                            <td>${fixture.awayTeamLogo ? '<img class="thumb-img" src="' + toImageSrc(fixture.awayTeamLogo) + '" alt="Away Team Logo">' : "N/A"}</td>
+                            <td>${imgTag(fixture.awayTeamLogo, "Away Team Logo", "thumb-img")}</td>
+                            <td>${scoreCell(fixture)}</td>
                             <td>${fixture.fixtureLocation || "N/A"}</td>
                         `;
                         body.appendChild(row);

@@ -9,7 +9,7 @@
     <body>
         <header>
             <div class="header-bar">
-                <div class="site-title">Basketball League Management System</div>
+                <div class="site-title">KBF- Premier League</div>
                 <nav>
                     <ul>
                         <li><a href="home.html">Home</a></li>
@@ -48,22 +48,53 @@
                         <tbody id="stats-body"></tbody>
                     </table>
                 </div>
+
+                <h2>Player Statistics</h2>
+                <div id="player-stats-status" class="status-message">Loading player statistics...</div>
+                <div class="table-wrapper">
+                    <table class="data-table" id="player-stats-table">
+                        <thead>
+                        <tr>
+                            <th>Player ID</th>
+                            <th>Name</th>
+                            <th>Team</th>
+                            <th>Jersey</th>
+                            <th>Pos</th>
+                            <th>PPG</th>
+                            <th>APG</th>
+                            <th>RPG</th>
+                            <th>SPG</th>
+                            <th>BPG</th>
+                        </tr>
+                        </thead>
+                        <tbody id="player-stats-body"></tbody>
+                    </table>
+                </div>
             </main>
 
             <div class="footer">
-                &copy; 2026 Basketball League Management System
+                &copy; 2026 Kenya Basketball Federation (KBF)- Premier League
             </div>
         </div>
 
         <script>
+            const API_BASE = (window.location.protocol === "file:" || window.location.port !== "4000")
+                ? "http://localhost:4000"
+                : "";
+
+            function apiUrl(path) {
+                return API_BASE + path;
+            }
+
             async function loadStats() {
                 const status = document.getElementById("stats-status");
                 const body = document.getElementById("stats-body");
 
                 try {
-                    const [statsResponse, teamsResponse] = await Promise.all([
-                        fetch("/api/stats"),
-                        fetch("/api/teams")
+                    const [statsResponse, teamsResponse, playersResponse] = await Promise.all([
+                        fetch(apiUrl("/api/stats")),
+                        fetch(apiUrl("/api/teams")),
+                        fetch(apiUrl("/api/players"))
                     ]);
 
                     if (!statsResponse.ok || !teamsResponse.ok) {
@@ -72,6 +103,7 @@
 
                     const stats = await statsResponse.json();
                     const teams = await teamsResponse.json();
+                    const players = await playersResponse.json();
                     const teamNameByID = new Map();
                     teams.forEach((team) => {
                         teamNameByID.set(team.clubId, team.teamName);
@@ -95,6 +127,48 @@
 
                     status.textContent = "Statistics loaded: " + stats.length;
                     status.className = "status-message status-success";
+
+                    // Build player statistics table using players' currentSeasonStats string when available.
+                    const pstatus = document.getElementById("player-stats-status");
+                    const pbody = document.getElementById("player-stats-body");
+                    pbody.innerHTML = "";
+                    players.forEach((p) => {
+                        // Parse the `currentSeasonStats` string like: 'PPG=12.3, APG=3.2, RPG=5.1, SPG=1.0, BPG=0.4'
+                        let ppg = "N/A", apg = "N/A", rpg = "N/A", spg = "N/A", bpg = "N/A";
+                        if (p.currentSeasonStats) {
+                            p.currentSeasonStats.split(',').forEach((kv) => {
+                                const parts = kv.split('=');
+                                if (parts.length === 2) {
+                                    const key = parts[0].trim().toUpperCase();
+                                    const val = parts[1].trim();
+                                    if (key === 'PPG') ppg = val;
+                                    if (key === 'APG') apg = val;
+                                    if (key === 'RPG') rpg = val;
+                                    if (key === 'SPG') spg = val;
+                                    if (key === 'BPG') bpg = val;
+                                }
+                            });
+                        }
+
+                        const row = document.createElement("tr");
+                        const name = p.middleName ? (p.firstName + ' ' + p.middleName + ' ' + p.lastName) : (p.firstName + ' ' + p.lastName);
+                        row.innerHTML = `
+                            <td>${p.playerId}</td>
+                            <td>${name}</td>
+                            <td>${teamNameByID.get(p.teamId) || p.teamId}</td>
+                            <td>${p.jerseyNumber || 'N/A'}</td>
+                            <td>${p.positionCode || 'N/A'}</td>
+                            <td>${ppg}</td>
+                            <td>${apg}</td>
+                            <td>${rpg}</td>
+                            <td>${spg}</td>
+                            <td>${bpg}</td>
+                        `;
+                        pbody.appendChild(row);
+                    });
+
+                    pstatus.textContent = "Player statistics loaded: " + players.length;
+                    pstatus.className = "status-message status-success";
                 } catch (error) {
                     status.textContent = "Failed to load statistics: " + error.message;
                     status.className = "status-message status-error";

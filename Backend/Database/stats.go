@@ -25,16 +25,16 @@ func ListStats() ([]Stat, error) {
 
 	rows, err := conn.Query(`
 		SELECT
-			stat_id,
+			team_stat_id,
 			team_id,
 			games_played,
 			wins,
 			losses,
-			points,
+			league_points,
 			points_scored,
 			points_allowed
-		FROM stats
-		ORDER BY points DESC, wins DESC`)
+		FROM team_statistics
+		ORDER BY league_points DESC, wins DESC`)
 	if err != nil {
 		return nil, fmt.Errorf("query stats: %w", err)
 	}
@@ -74,16 +74,16 @@ func GetStatByID(statID int64) (*Stat, error) {
 	var stat Stat
 	err = conn.QueryRow(`
 		SELECT
-			stat_id,
+			team_stat_id,
 			team_id,
 			games_played,
 			wins,
 			losses,
-			points,
+			league_points,
 			points_scored,
 			points_allowed
-		FROM stats
-		WHERE stat_id = :1`, statID).Scan(
+		FROM team_statistics
+		WHERE team_stat_id = :1`, statID).Scan(
 		&stat.StatID,
 		&stat.TeamID,
 		&stat.GamesPlayed,

@@ -441,37 +441,31 @@ func createClub(club db.Club) error {
 
 	if club.ClubID > 0 {
 		_, err = conn.Exec(`
-            INSERT INTO clubs (
-                club_id,
-                team_name,
-                team_logo,
-                club_manager_id,
-                club_manager_photo,
-                ass_club_manager,
-                ass_club_manager_photo,
-                club_location_id,
-                club_history
-            ) VALUES (:1, :2, :3, :4, :5, :6, :7, :8, :9)`,
+			INSERT INTO clubs (
+				club_id,
+				team_name,
+				team_logo,
+				club_manager_id,
+				club_manager_photo,
+				club_location_id,
+				club_history
+			) VALUES (:1, :2, :3, :4, :5, :6, :7)`,
 			club.ClubID,
 			club.TeamName,
 			club.TeamLogo,
 			club.ClubManagerID,
 			club.ClubManagerPhoto,
-			club.AssClubManager,
-			club.AssClubManagerPhoto,
 			club.ClubLocationID,
 			club.ClubHistory,
 		)
 	} else {
 		_, err = conn.Exec(`
-            INSERT INTO clubs (
-                team_name, team_logo, club_manager_id, club_manager_photo,
-                ass_club_manager, ass_club_manager_photo, club_location_id,
-                club_history
-            ) VALUES (:1, :2, :3, :4, :5, :6, :7, :8)`,
+			INSERT INTO clubs (
+				team_name, team_logo, club_manager_id, club_manager_photo,
+				club_location_id, club_history
+			) VALUES (:1, :2, :3, :4, :5, :6)`,
 			club.TeamName, club.TeamLogo, club.ClubManagerID,
-			club.ClubManagerPhoto, club.AssClubManager,
-			club.AssClubManagerPhoto, club.ClubLocationID, club.ClubHistory,
+			club.ClubManagerPhoto, club.ClubLocationID, club.ClubHistory,
 		)
 	}
 	if err != nil {
@@ -491,19 +485,16 @@ func updateClub(club db.Club) error {
 
 	_, err = conn.Exec(`
         UPDATE clubs
-        SET
-            team_name = :1,
-            team_logo = :2,
-            club_manager_id = :3,
-            club_manager_photo = :4,
-            ass_club_manager = :5,
-            ass_club_manager_photo = :6,
-            club_location_id = :7,
-            club_history = :8
-        WHERE club_id = :9`,
+		SET
+			team_name = :1,
+			team_logo = :2,
+			club_manager_id = :3,
+			club_manager_photo = :4,
+			club_location_id = :5,
+			club_history = :6
+		WHERE club_id = :7`,
 		club.TeamName, club.TeamLogo, club.ClubManagerID, club.ClubManagerPhoto,
-		club.AssClubManager, club.AssClubManagerPhoto, club.ClubLocationID,
-		club.ClubHistory, club.ClubID,
+		club.ClubLocationID, club.ClubHistory, club.ClubID,
 	)
 	if err != nil {
 		return fmt.Errorf("update club: %w", err)

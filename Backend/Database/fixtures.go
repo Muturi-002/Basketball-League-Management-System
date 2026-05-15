@@ -12,9 +12,9 @@ type Fixture struct {
 	FixtureDate     time.Time `json:"fixtureDate"`
 	FixtureTime     time.Time `json:"fixtureTime"`
 	HomeTeamID      int64     `json:"homeTeamId"`
-	HomeTeamLogo    []byte    `json:"homeTeamLogo"`
+	HomeTeamLogo    string    `json:"homeTeamLogo"`
 	AwayTeamID      int64     `json:"awayTeamId"`
-	AwayTeamLogo    []byte    `json:"awayTeamLogo"`
+	AwayTeamLogo    string    `json:"awayTeamLogo"`
 	FixtureLocation string    `json:"fixtureLocation"`
 }
 

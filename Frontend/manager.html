@@ -9,7 +9,7 @@
     <body>
         <header>
             <div class="header-bar">
-                <div class="site-title">Basketball League Management System</div>
+                <div class="site-title">KBF- Premier League</div>
                 <nav>
                     <ul>
                         <li><a href="home.html">Home</a></li>
@@ -44,16 +44,17 @@
             </main>
 
             <div class="footer">
-                &copy; 2026 Basketball League Management System
+                &copy; 2026 Kenya Basketball Federation (KBF)- Premier League
             </div>
         </div>
 
         <script>
-            function toImageSrc(base64Value) {
-                if (!base64Value) {
-                    return "";
-                }
-                return "data:image/jpeg;base64," + base64Value;
+            const API_BASE = (window.location.protocol === "file:" || window.location.port !== "4000")
+                ? "http://localhost:4000"
+                : "";
+
+            function apiUrl(path) {
+                return API_BASE + path;
             }
 
             function getManagerID() {
@@ -72,8 +73,8 @@
                     }
 
                     const [managerResponse, teamsResponse] = await Promise.all([
-                        fetch("/api/managers/" + managerID),
-                        fetch("/api/teams")
+                        fetch(apiUrl("/api/managers/" + managerID)),
+                        fetch(apiUrl("/api/teams"))
                     ]);
 
                     if (!managerResponse.ok) {
@@ -85,18 +86,20 @@
 
                     const manager = await managerResponse.json();
                     const teams = await teamsResponse.json();
-                    const team = teams.find((candidate) => candidate.clubId === manager.teamId);
+                    const team = teams.find((t) => t.clubId === manager.teamId);
 
                     const middleName = manager.middleName ? manager.middleName + " " : "";
                     document.getElementById("manager-id").textContent = manager.managerId;
                     document.getElementById("manager-name").textContent = manager.firstName + " " + middleName + manager.lastName;
                     document.getElementById("manager-type").textContent = manager.managerType || "N/A";
                     document.getElementById("manager-team").textContent = team ? team.teamName : manager.teamId;
+                    // managerHistory is *string (omitempty) — will be undefined when NULL in DB.
                     document.getElementById("manager-history").textContent = manager.managerHistory || "N/A";
 
                     const photo = document.getElementById("manager-photo");
+                    // managerPhoto is an OCI Object Storage URL — use directly as src.
                     if (manager.managerPhoto) {
-                        photo.src = toImageSrc(manager.managerPhoto);
+                        photo.src = manager.managerPhoto;
                         photo.hidden = false;
                     } else {
                         photo.hidden = true;

@@ -1,40 +1,173 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BLMS - Injury</title>
-    <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-<header>
-    <div class="header-bar">
-        <div class="site-title">Basketball League Management System</div>
-        <nav>
-            <ul>
-                <li><a href="home.html">Home</a></li>
-                <li><a href="teams.html">Teams</a></li>
-                <li><a href="players.html">Players</a></li>
-                <li><a href="injury.html">Injury</a></li>
-                <li><a href="stats.html">Stats</a></li>
-                <li><a href="fixtures.html">Fixtures</a></li>
-            </ul>
-        </nav>
-        <a class="login-button" href="auth.html">Login</a>
-    </div>
-</header>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>BLMS - Injury</title>
+        <link rel="stylesheet" href="styles.css">
+    </head>
+    <body>
+        <header>
+            <div class="header-bar">
+                <div class="site-title">KBF- Premier League</div>
+                <nav>
+                    <ul>
+                        <li><a href="home.html">Home</a></li>
+                        <li><a href="teams.html">Teams</a></li>
+                        <li><a href="players.html">Players</a></li>
+                        <li><a href="injury.html">Injury</a></li>
+                        <li><a href="stats.html">Stats</a></li>
+                        <li><a href="fixtures.html">Fixtures</a></li>
+                    </ul>
+                </nav>
+                <a class="login-button" href="auth.html">Login</a>
+            </div>
+        </header>
 
-<div class="main-container">
-    <main>
-        <h1>Injuries</h1>
-        <p>
-            Track current injuries and player availability across the league.
-        </p>
-    </main>
+        <div class="main-container">
+            <main>
+                <h1>Injuries</h1>
+                <p>Track current injuries and player availability across the league.</p>
 
-    <div class="footer">
-        &copy; 2026 Basketball League Management System
-    </div>
-</div>
-</body>
+                <h2>Injury Catalogue</h2>
+                <div id="injuries-status" class="status-message">Loading injuries...</div>
+
+                <div class="table-wrapper">
+                    <table class="data-table" id="injuries-table">
+                        <thead>
+                            <tr>
+                                <th>Injury ID</th>
+                                <th>Name</th>
+                                <th>Type</th>
+                                <th>Description</th>
+                                <th>Resources</th>
+                                <th>Video</th>
+                            </tr>
+                        </thead>
+                        <tbody id="injuries-body"></tbody>
+                    </table>
+                </div>
+
+                <h2 style="margin-top:28px">Injured Players</h2>
+                <div id="injured-status" class="status-message">Loading injured players...</div>
+
+                <div class="table-wrapper">
+                    <table class="data-table" id="injured-table">
+                        <thead>
+                            <tr>
+                                <th>Record ID</th>
+                                <th>Player</th>
+                                <th>Injury</th>
+                                <th>Status</th>
+                                <th>Start Date</th>
+                                <th>Expected Return</th>
+                            </tr>
+                        </thead>
+                        <tbody id="injured-body"></tbody>
+                    </table>
+                </div>
+            </main>
+
+            <div class="footer">
+                &copy; 2026 Kenya Basketball Federation (KBF)- Premier League
+            </div>
+        </div>
+
+        <script>
+            const API_BASE = (window.location.protocol === "file:" || window.location.port !== "4000")
+                ? "http://localhost:4000"
+                : "";
+
+            function apiUrl(path) { return API_BASE + path; }
+
+            function fmtDate(iso) {
+                if (!iso) return "N/A";
+                return new Date(iso).toLocaleDateString();
+            }
+
+            function linkCell(url, label) {
+                if (!url) return "N/A";
+                return '<a href="' + url + '" target="_blank" rel="noopener">' + label + '</a>';
+            }
+
+            async function loadInjuries() {
+                const status = document.getElementById("injuries-status");
+                const body   = document.getElementById("injuries-body");
+                try {
+                    const res = await fetch(apiUrl("/api/injuries"));
+                    if (!res.ok) throw new Error("HTTP " + res.status);
+                    const injuries = await res.json();
+
+                    body.innerHTML = "";
+                    injuries.forEach((inj) => {
+                        const row = document.createElement("tr");
+                        row.innerHTML = `
+                            <td>${inj.injuryId}</td>
+                            <td>${inj.injuryName}</td>
+                            <td>${inj.injuryType}</td>
+                            <td>${inj.injuryDescription || "N/A"}</td>
+                            <td>${linkCell(inj.injuryResources, "Resource")}</td>
+                            <td>${linkCell(inj.injuryVideoDescription, "Video")}</td>
+                        `;
+                        body.appendChild(row);
+                    });
+
+                    status.textContent = "Injuries loaded: " + injuries.length;
+                    status.className = "status-message status-success";
+                } catch (err) {
+                    status.textContent = "Failed to load injuries: " + err.message;
+                    status.className = "status-message status-error";
+                }
+            }
+
+            async function loadInjuredPlayers() {
+                const status = document.getElementById("injured-status");
+                const body   = document.getElementById("injured-body");
+                try {
+                    // Fetch injured players and players list in parallel for name lookup.
+                    const [injuredRes, playersRes] = await Promise.all([
+                        fetch(apiUrl("/api/injured-players")),
+                        fetch(apiUrl("/api/players"))
+                    ]);
+                    if (!injuredRes.ok)  throw new Error("HTTP " + injuredRes.status + " (injured-players)");
+                    if (!playersRes.ok)  throw new Error("HTTP " + playersRes.status + " (players)");
+
+                    const injured = await injuredRes.json();
+                    const players = await playersRes.json();
+
+                    // Build player ID → full name map.
+                    const playerNameById = new Map();
+                    players.forEach((p) => {
+                        const mid = p.middleName ? p.middleName + " " : "";
+                        playerNameById.set(p.playerId, p.firstName + " " + mid + p.lastName);
+                    });
+
+                    body.innerHTML = "";
+                    injured.forEach((ip) => {
+                        const row = document.createElement("tr");
+                        // injuryStatus values from schema CHECK: 'CURRENT' | 'RECOVERED'
+                        const statusLabel = ip.injuryStatus === "CURRENT" ? "Current" : "Recovered";
+                        row.innerHTML = `
+                            <td>${ip.injuredPlayerId}</td>
+                            <td>${playerNameById.get(ip.playerId) || "Player #" + ip.playerId}</td>
+                            <td>${ip.injuryName}</td>
+                            <td>${statusLabel}</td>
+                            <td>${fmtDate(ip.injuryStartDate)}</td>
+                            <td>${fmtDate(ip.expectedTimeOfReturn)}</td>
+                        `;
+                        body.appendChild(row);
+                    });
+
+                    status.textContent = "Injured players loaded: " + injured.length;
+                    status.className = "status-message status-success";
+                } catch (err) {
+                    status.textContent = "Failed to load injured players: " + err.message;
+                    status.className = "status-message status-error";
+                }
+            }
+
+            loadInjuries();
+            loadInjuredPlayers();
+        </script>
+    </body>
 </html>

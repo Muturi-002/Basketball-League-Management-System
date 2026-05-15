@@ -5,19 +5,19 @@ import (
 	"fmt"
 )
 
-// Manager maps the fields from the Team Managers table (managers.png).
+// Manager maps every column from the team_managers table.
+// ManagerPhoto is an OCI Object Storage URL stored as VARCHAR(200) — not binary.
 type Manager struct {
 	ManagerID      int64   `json:"managerId"`
 	FirstName      string  `json:"firstName"`
 	MiddleName     *string `json:"middleName,omitempty"`
 	LastName       string  `json:"lastName"`
-	ManagerPhoto   []byte  `json:"managerPhoto"` // binary photo data
+	ManagerPhoto   *string `json:"managerPhoto,omitempty"`
 	ManagerType    string  `json:"managerType"`
 	TeamID         int64   `json:"teamId"`
-	ManagerHistory string  `json:"managerHistory"`
+	ManagerHistory *string `json:"managerHistory,omitempty"`
 }
 
-// TODO: Implement data access operations for managers.
 func ListManagers() ([]Manager, error) {
 	conn, err := EnsureConnected()
 	if err != nil {
@@ -44,22 +44,29 @@ func ListManagers() ([]Manager, error) {
 	managers := make([]Manager, 0)
 	for rows.Next() {
 		var manager Manager
-		var middleName sql.NullString
+		var (
+			middleName     sql.NullString
+			managerPhoto   sql.NullString
+			managerHistory sql.NullString
+		)
 
 		if err := rows.Scan(
 			&manager.ManagerID,
 			&manager.FirstName,
 			&middleName,
 			&manager.LastName,
-			&manager.ManagerPhoto,
+			&managerPhoto,
 			&manager.ManagerType,
 			&manager.TeamID,
-			&manager.ManagerHistory,
+			&managerHistory,
 		); err != nil {
 			return nil, fmt.Errorf("scan manager row: %w", err)
 		}
 
 		manager.MiddleName = nullStringPtr(middleName)
+		manager.ManagerPhoto = nullStringPtr(managerPhoto)
+		manager.ManagerHistory = nullStringPtr(managerHistory)
+
 		managers = append(managers, manager)
 	}
 
@@ -77,7 +84,11 @@ func GetManagerByID(managerID int64) (*Manager, error) {
 	}
 
 	var manager Manager
-	var middleName sql.NullString
+	var (
+		middleName     sql.NullString
+		managerPhoto   sql.NullString
+		managerHistory sql.NullString
+	)
 
 	err = conn.QueryRow(`
 		SELECT
@@ -95,10 +106,10 @@ func GetManagerByID(managerID int64) (*Manager, error) {
 		&manager.FirstName,
 		&middleName,
 		&manager.LastName,
-		&manager.ManagerPhoto,
+		&managerPhoto,
 		&manager.ManagerType,
 		&manager.TeamID,
-		&manager.ManagerHistory,
+		&managerHistory,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -108,5 +119,8 @@ func GetManagerByID(managerID int64) (*Manager, error) {
 	}
 
 	manager.MiddleName = nullStringPtr(middleName)
+	manager.ManagerPhoto = nullStringPtr(managerPhoto)
+	manager.ManagerHistory = nullStringPtr(managerHistory)
+
 	return &manager, nil
 }

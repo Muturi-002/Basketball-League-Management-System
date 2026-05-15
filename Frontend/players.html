@@ -9,7 +9,7 @@
     <body>
         <header>
             <div class="header-bar">
-                <div class="site-title">Basketball League Management System</div>
+                <div class="site-title">KBF- Premier League</div>
                 <nav>
                     <ul>
                         <li><a href="home.html">Home</a></li>
@@ -38,6 +38,8 @@
                             <th>Player ID</th>
                             <th>Photo</th>
                             <th>Name</th>
+                            <th>#</th>
+                            <th>Position</th>
                             <th>Age</th>
                             <th>Date of Birth</th>
                             <th>Team</th>
@@ -50,16 +52,23 @@
             </main>
 
             <div class="footer">
-                &copy; 2026 Basketball League Management System
+                &copy; 2026 Kenya Basketball Federation (KBF)- Premier League
             </div>
         </div>
 
         <script>
-            function toImageSrc(base64Value) {
-                if (!base64Value) {
-                    return "";
-                }
-                return "data:image/jpeg;base64," + base64Value;
+            const API_BASE = (window.location.protocol === "file:" || window.location.port !== "4000")
+                ? "http://localhost:4000"
+                : "";
+
+            function apiUrl(path) {
+                return API_BASE + path;
+            }
+
+            // Photos are OCI Object Storage URLs — use directly as src.
+            function imgTag(url, alt, cssClass) {
+                if (!url) return "N/A";
+                return '<img class="' + cssClass + '" src="' + url + '" alt="' + alt + '">';
             }
 
             async function loadPlayers() {
@@ -68,8 +77,8 @@
 
                 try {
                     const [playersResponse, teamsResponse] = await Promise.all([
-                        fetch("/api/players"),
-                        fetch("/api/teams")
+                        fetch(apiUrl("/api/players")),
+                        fetch(apiUrl("/api/teams"))
                     ]);
 
                     if (!playersResponse.ok || !teamsResponse.ok) {
@@ -80,9 +89,7 @@
                     const teams = await teamsResponse.json();
 
                     const teamNameById = new Map();
-                    teams.forEach((team) => {
-                        teamNameById.set(team.clubId, team.teamName);
-                    });
+                    teams.forEach((team) => teamNameById.set(team.clubId, team.teamName));
 
                     body.innerHTML = "";
                     players.forEach((player) => {
@@ -94,8 +101,10 @@
 
                         row.innerHTML = `
                             <td>${player.playerId}</td>
-                            <td>${player.playerPhoto ? '<img class="thumb-img" src="' + toImageSrc(player.playerPhoto) + '" alt="Player Photo">' : "N/A"}</td>
+                            <td>${imgTag(player.playerPhoto, "Player Photo", "thumb-img")}</td>
                             <td>${fullName}</td>
+                            <td>${player.jerseyNumber}</td>
+                            <td>${player.positionCode}</td>
                             <td>${player.age}</td>
                             <td>${new Date(player.dateOfBirth).toLocaleDateString()}</td>
                             <td>${teamName}</td>
