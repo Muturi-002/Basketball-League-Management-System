@@ -60,18 +60,14 @@ jobs:
             if [ -d "${REPO_PATH}" ]; then
               cd ${REPO_PATH}
               git pull origin prod
-              cd ${REPO_PATH}/Backend
-              pkill -f './blms' || true
-              go build -o blms .
-              nohup ./blms > backend.log 2>&1 &
             else
               git clone https://github.com/Muturi-002/Basketball-League-Management-System.git
               cd ${REPO_PATH}
-              cd ${REPO_PATH}/Backend
-              pkill -f './blms' || true
-              go build -o blms .
-              nohup ./blms > backend.log 2>&1 &
             fi
+            cd /home/opc/Basketball-League-Management-System/Backend
+            pkill -f './blms' || true
+            go build -o blms .
+            nohup ./blms > backend.log 2>&1 &
             '
             rm -f private-key
       - name: Configure NGINX
