@@ -9,140 +9,90 @@ env:
   # Expose repo variables/secrets to steps as needed
   ORACLE_DRIVER: ${{ vars.ORACLE_DRIVER }}
   ORACLE_CONNECTION_STRING: ${{ secrets.ORACLE_CONNECTION_STRING }}
-  ORACLE_LIB_DIR: ${{ secrets.ORACLE_LIB_DIR }}
   ORACLE_CONFIG_DIR: ${{ secrets.ORACLE_CONFIG_DIR }}
   SERVER_IP: ${{ secrets.SERVER_IP }}
   SERVER_USER: ${{ secrets.SERVER_USERNAME }}
   PRIVATE_KEY: ${{ secrets.SSH_KEY }}
+  REPO_PATH: /home/${{ secrets.SERVER_USERNAME }}/Basketball-League-Management-System
 
 jobs:
-  deploy:
-    runs-on: ubuntu-latest
+  install:
+    runs-on: oraclelinux/ol9
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Successfull connection to the server
+      - name: Successful connection to the server
         run: |
             echo "$PRIVATE_KEY" > private-key && chmod 700 private-key
             ssh -o StrictHostKeyChecking=no -i private-key ${SERVER_USER}@${SERVER_IP} '
-            # Identify user and IPs
-            whoami
-            echo "Connected to server at $(hostname -I)"
+              # Identify user and IPs
+              whoami
+              echo "Connected to server at $(hostname -I)"
             '
+            rm -f private-key
 
-      - name: Verify Go installation
+      - name: Check NGINX and Go in server and start NGINX
         run: |
-          echo "$PRIVATE_KEY" > private-key && chmod 700 private-key
+          echo "$PRIVATE_KEY" > private-key && chmod 600 private-key
           ssh -o StrictHostKeyChecking=no -i private-key ${SERVER_USER}@${SERVER_IP} '
+            sudo dnf update -y
+            sudo dnf install -y nginx golang
+
+
             if command -v go >/dev/null 2>&1; then
               echo "Go is installed: $(go version)"
-            else
-              echo "Go not found on server; attempting apt-get install golang"
-              sudo apt-get update -y && sudo apt-get install -y golang
             fi
-          '
-          rm private-key
+            sudo systemctl enable nginx
+            sudo systemctl start nginx
+            '
+          rm -f private-key
 
-      - name: Verify local oracle-client wrapper exists in repo
-        run: |
-            echo "$PRIVATE_KEY" > private-key && chmod 700 private-key
-            ssh -o StrictHostKeyChecking=no -i private-key ${SERVER_USER}@${SERVER_IP} '
-                echo "Setting up libaio1t64..."
-                sudo apt-get install -y libaio1t64
-
-                # Move to a new directory for downloading and unzipping the Oracle Instant Client
-                sudo mkdir /opt/oracledb-instant-client && cd /opt/oracledb-instant-client
-
-                echo "//nDownloading Oracle Instant Client Basic..."
-                if command -v wget >/dev/null 2>&1; then
-                    wget -q https://download.oracle.com/otn_software/linux/instantclient/2326200/instantclient-basic-linux.x64-23.26.2.0.0.zip
-                else
-                    echo "wget not found; attempting apt-get install wget"
-                    sudo apt-get update -y && sudo apt-get install -y wget
-                    wget -q https://download.oracle.com/otn_software/linux/instantclient/2326200/instantclient-basic-linux.x64-
-                fi
-
-                sudo unzip instantclient-basic-linux.x64-23.26.1.0.0.zip
-                # Create a symlink for the Oracle client libraries to be found in a standard location
-                sudo sh -c "echo /opt/oracledb-instant-client/instantclient_23_26 > /etc/ld.so.conf.d/oracle-instantclient.conf"
-                sudo ldconfig
-
-
-                if [ -d "${{ github.workspace }}/oracle-client" ]; then
-                    echo "oracle-client directory exists"
-                    ls -l "${{ github.workspace }}/oracle-client" | sed -n '1,20p'
-                else
-                    echo "Warning: ./oracle-client not found in repo workspace"
-                    cp -r oracledb-instant-client/instantclient_23_26 "${{ github.workspace }}"/oracle-client
-                fi
-                '
-            rm private-key
-
-      - name: Setup Application ENV variables
+    
+  deploy:
+    needs: install
+    runs-on: oraclelinux/ol9
+    steps:
+      - name: Update application repo and run server
         run: |
           echo "$PRIVATE_KEY" > private-key && chmod 700 private-key
           ssh -o StrictHostKeyChecking=no -i private-key ${SERVER_USER}@${SERVER_IP} '
-            # Recreate .env file with Oracle connection string and library path
-            rm -f /home/$SERVER_USER/Basketball-League-Management-System/.env
-            cat /home/$SERVER_USER/Basketball-League-Management-System/.env <<EOF
-                ORACLE_DRIVER=$ORACLE_DRIVER
-                DB_USER=${{ secrets.DB_USER }}
-                DB_PASSWORD= ${{ secrets.DB_PASSWORD }}
-                ORACLE_LIB_DIR= ${{ secrets.ORACLE_LIB_DIR }}
-                ORACLE_CONFIG_DIR=$ORACLE_CONFIG_DIR
-                ORACLE_CONNECTION_STRING=${{vars.ORACLE_CONNECTION_STRING}}
-                TNS_PATH=$${{secrets.TNS_PATH}}
+            if [ -d "${REPO_PATH}" ]; then
+              cd ${REPO_PATH}
+              git pull origin prod
+            else
+              git clone https://github.com/Muturi-002/Basketball-League-Management-System.git
+              cd ${REPO_PATH}
+            fi
+            cd Backend
+            pkill -f './blms' || true
+            go build -o blms .
+            nohup ./blms > backend.log 2>&1 &
+            '
+            rm -f private-key
+      - name: Configure NGINX
+        run: |
+          echo "$PRIVATE_KEY" > private-key && chmod 700 private-key
+          ssh -o StrictHostKeyChecking=no -i private-key ${SERVER_USER}@${SERVER_IP} '
+            sudo tee /etc/nginx/conf.d/goapp.conf > /dev/null <<EOF
+              server {
+                  listen 80;
+                  server_name _;
+
+                  location / {
+                      proxy_pass http://127.0.0.1:4000;
+                      proxy_http_version 1.1;
+                      proxy_set_header Host $host;
+                      proxy_set_header X-Real-IP $remote_addr;
+                      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  }
+              }
             EOF
 
+            sudo nginx -t
+            sudo systemctl restart nginx
+            EOF
           '
-                rm private-key
+          rm -f private-key
 
-
-      - name: Remote pull, build, restart server
-        run: |
-          echo "$PRIVATE_KEY" > private-key && chmod 700 private-key
-          ssh -o StrictHostKeyChecking=no -i private-key ${SERVER_USER}@${SERVER_IP} '
-            # Branch name passed from GitHub context
-            BRANCH='${{ github.ref }}'
-            BRANCH=${BRANCH#refs/heads/}
-
-            # Remote repo path (change if different on your server)
-            REPO_PATH="/home/${{ secrets.SERVER_USERNAME }}/Basketball-League-Management-System"
-
-            echo "Prod branch: $BRANCH"
-            echo "Remote path: $REPO_PATH"
-
-            if [ -d "$REPO_PATH/.git" ]; then
-              echo "Repository found on server — updating"
-              cd "$REMOTE_REPO_PATH"
-              git fetch --all
-              git checkout "$BRANCH" || true
-              git pull origin "$BRANCH"
-            else
-              echo "Repository not present. Cloning"
-              git clone --branch "$BRANCH" https://github.com/Muturi-002/Basketball-League-Management-System.git "$REMOTE_REPO_PATH"
-            fi
-
-            # Export Oracle library path for runtime if provided
-            export LD_LIBRARY_PATH="${{ secrets.ORACLE_LIB_DIR}}:-/home/${{ secrets.SERVER_USERNAME }}/Basketball-League-Management-System/oracle-client }}":${LD_LIBRARY_PATH:-}
-
-            # Build and restart the server app
-            if [ -f "$REMOTE_REPO_PATH/Backend/web.go" ]; then
-              echo "Building backend"
-              cd "$REMOTE_REPO_PATH/Backend"
-              pkill -f web.go || true
-              go build -o blms .
-              # start the app in background; adapt this command to your production service manager
-              nohup ./blms > /var/log/blms.out 2>&1 &
-              sleep 2
-            else
-              echo "No Backend/web.go found — skipping build/start"
-            fi
-
-            # Try to restart systemd service if one exists (named blms)
-            if sudo systemctl list-units --type=service --all | grep -q "blms"; then
-              echo "Restarting blms systemd service
-          '
-          rm private-key
         
