@@ -58,9 +58,7 @@ jobs:
           echo "$PRIVATE_KEY" > private-key && chmod 700 private-key
           ssh -o StrictHostKeyChecking=no -i private-key ${SERVER_USER}@${SERVER_IP} '
             if [ -d '${REPO_PATH}' ]; then
-              cd '${REPO_PATH}'
-              git pull origin prod
-              rm -rf .github/
+              rm -rf ${REPO_PATH}
             else
               git clone https://github.com/Muturi-002/Basketball-League-Management-System.git
               cd ${REPO_PATH}
