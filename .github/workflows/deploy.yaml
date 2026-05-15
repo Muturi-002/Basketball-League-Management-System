@@ -57,14 +57,14 @@ jobs:
         run: |
           echo "$PRIVATE_KEY" > private-key && chmod 700 private-key
           ssh -o StrictHostKeyChecking=no -i private-key ${SERVER_USER}@${SERVER_IP} '
-            if [ -d "${REPO_PATH}" ]; then
-              cd ${REPO_PATH}
+            if [ -d '${REPO_PATH}' ]; then
+              cd '${REPO_PATH}''
               git pull origin prod
             else
               git clone https://github.com/Muturi-002/Basketball-League-Management-System.git
               cd ${REPO_PATH}
             fi
-            cd /home/opc/Basketball-League-Management-System/Backend
+            cd '${REPO_PATH}/Backend'
             pkill -f './blms' || true
             go build -o blms .
             nohup ./blms > backend.log 2>&1 &
