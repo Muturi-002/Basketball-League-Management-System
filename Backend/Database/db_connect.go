@@ -5,82 +5,109 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
-	"syscall"
 
-	_ "github.com/godror/godror"
+	"net/url"
+
+	_ "github.com/sijms/go-ora/v2"
 )
 
-var db *sql.DB
-var envOnce sync.Once
+var (
+	db      *sql.DB
+	dbOnce  sync.Once
+	dbErr   error
+	envOnce sync.Once
+)
 
-func Connect(driverName, conn_string string) error {
+// Connect opens and pings a database connection using the given driver and DSN.
+func Connect(driverName, connString string) error {
 	driverName = strings.TrimSpace(driverName)
-	conn_string = strings.TrimSpace(conn_string)
+	connString = strings.TrimSpace(connString)
 
 	if driverName == "" {
 		return errors.New("driver name is required")
 	}
-	if conn_string == "" {
-		return errors.New("conn_string is required")
+	if connString == "" {
+		return errors.New("connection string is required")
 	}
 
-	if db != nil {
-		return nil
-	}
+	dbOnce.Do(func() {
+		conn, err := sql.Open(driverName, connString)
+		if err != nil {
+			dbErr = fmt.Errorf("open connection: %w", err)
+			return
+		}
+		if err := conn.Ping(); err != nil {
+			dbErr = fmt.Errorf("ping database: %w", err)
+			return
+		}
+		db = conn
+	})
 
-	conn, err := sql.Open(driverName, conn_string)
-	if err != nil {
-		return fmt.Errorf("open connection: %w", err)
-	}
-
-	if err := conn.Ping(); err != nil {
-		return fmt.Errorf("ping database: %w", err)
-	}
-
-	db = conn
-	return nil
+	return dbErr
 }
 
+// ConnectFromEnv loads the .env file (if present) and opens the database
 func ConnectFromEnv() error {
 	envOnce.Do(func() {
-		_ = loadEnvFile(resolveEnvPath())
+		_ = loadEnvFile(findEnvFile())
 	})
 
 	driver := strings.TrimSpace(os.Getenv("ORACLE_DRIVER"))
 	if driver == "" {
-		driver = "godror"
+		// go-ora registers the driver as "oracle"
+		driver = "oracle"
 	}
 
-	conn_string, err := buildStringFromEnv()
+	connString, err := buildConnString()
 	if err != nil {
 		return err
 	}
 
-	return Connect(driver, conn_string)
+	return Connect(driver, connString)
 }
 
-func resolveEnvPath() string {
-	if _, sourceFile, _, ok := runtime.Caller(0); ok {
-		for _, candidate := range []string{
-			filepath.Join(filepath.Dir(sourceFile), "..", "..", ".env"),
-			filepath.Join(filepath.Dir(sourceFile), "..", ".env"),
-			".env",
-		} {
-			if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
-				return candidate
-			}
-		}
+// EnsureConnected returns the active *sql.DB
+func EnsureConnected() (*sql.DB, error) {
+	if db != nil {
+		return db, nil
 	}
+	if err := ConnectFromEnv(); err != nil {
+		return nil, err
+	}
+	return db, nil
+}
 
+// DB returns the shared *sql.DB instance (may be nil before Connect is called).
+func DB() *sql.DB { return db }
+
+// IsConnected reports whether a DB handle has been initialised.
+func IsConnected() bool { return db != nil }
+
+// findEnvFile walks up from the current working directory looking for a .env file.
+func findEnvFile() string {
+	dir, err := os.Getwd()
+	if err != nil {
+		return ".env"
+	}
+	for {
+		candidate := filepath.Join(dir, ".env")
+		if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
+			return candidate
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
 	return ".env"
 }
 
+// loadEnvFile reads key=value pairs from path into the process environment
 func loadEnvFile(path string) error {
 	file, err := os.Open(filepath.Clean(path))
 	if err != nil {
@@ -97,27 +124,23 @@ func loadEnvFile(path string) error {
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
-		if strings.HasPrefix(line, "export ") {
-			line = strings.TrimSpace(strings.TrimPrefix(line, "export "))
-		}
+		line = strings.TrimPrefix(line, "export ")
 
 		key, value, found := strings.Cut(line, "=")
 		if !found {
 			continue
 		}
-
 		key = strings.TrimSpace(key)
 		value = strings.TrimSpace(value)
 		if key == "" {
 			continue
 		}
-
 		if len(value) >= 2 {
-			if (value[0] == '"' && value[len(value)-1] == '"') || (value[0] == '\'' && value[len(value)-1] == '\'') {
+			q := value[0]
+			if (q == '"' || q == '\'') && value[len(value)-1] == q {
 				value = value[1 : len(value)-1]
 			}
 		}
-
 		if _, exists := os.LookupEnv(key); !exists {
 			_ = os.Setenv(key, value)
 		}
@@ -126,114 +149,63 @@ func loadEnvFile(path string) error {
 	return scanner.Err()
 }
 
-func buildStringFromEnv() (string, error) {
-
+// buildConnString assembles a go-ora JDBC-like URL from environment variables. It prefers building an "oracle://user:pass@..." URL; if the ORACLE_CONNECTION_STRING contains a full connect descriptor the descriptor is URL-escaped and passed as the `connectString` query parameter which go-ora understands.
+func buildConnString() (string, error) {
 	user := strings.TrimSpace(os.Getenv("DB_USER"))
 	password := strings.TrimSpace(os.Getenv("DB_PASSWORD"))
-	connectionString := strings.TrimSpace(os.Getenv("ORACLE_CONNECTION_STRING"))
+	connStr := strings.TrimSpace(os.Getenv("ORACLE_CONNECTION_STRING"))
+
+	if user == "" || password == "" || connStr == "" {
+		return "", errors.New("missing required env vars: DB_USER, DB_PASSWORD, ORACLE_CONNECTION_STRING")
+	}
+
 	configDir := strings.TrimSpace(os.Getenv("ORACLE_CONFIG_DIR"))
-	if configDir == "" {
-		configDir = strings.TrimSpace(os.Getenv("TNS_PATH"))
-	}
-	libDir := strings.TrimSpace(os.Getenv("ORACLE_LIB_DIR"))
-	if libDir == "" {
-		libDir = strings.TrimSpace(os.Getenv("ORACLE_CLIENT_LIB_DIR"))
-	}
 
-	if user == "" || password == "" || connectionString == "" {
-		return "", errors.New("missing DB_USER/DB_PASSWORD/ORACLE_CONNECTION_STRING. Check your environment variables")
-	}
-
-	if configDir != "" {
-		_ = os.Setenv("TNS_ADMIN", configDir)
-	}
-	if libDir != "" {
-		current := strings.TrimSpace(os.Getenv("LD_LIBRARY_PATH"))
-		if current == "" {
-			_ = os.Setenv("LD_LIBRARY_PATH", libDir)
-		} else if !strings.Contains(current, libDir) {
-			_ = os.Setenv("LD_LIBRARY_PATH", libDir+":"+current)
+	// Extracting host, port and service_name from a full descriptor like (description=...(address=(protocol=tcps)(port=1522)(host=...))(connect_data=(service_name=...)))
+	extract := func(key string) string {
+		lower := strings.ToLower(connStr)
+		k := strings.ToLower(key) + "="
+		i := strings.Index(lower, k)
+		if i < 0 {
+			return ""
 		}
-	}
-
-	conn_string := fmt.Sprintf(`user="%s" password="%s" connectString="%s"`, user, password, connectionString)
-	if configDir != "" {
-		conn_string += fmt.Sprintf(` configDir="%s"`, configDir)
-	}
-	if libDir != "" {
-		conn_string += fmt.Sprintf(` libDir="%s"`, libDir)
-	}
-
-	return conn_string, nil
-}
-
-// EnsureConnected verifies that a database connection is active.
-func EnsureConnected() (*sql.DB, error) {
-	if db != nil {
-		return db, nil
-	}
-
-	if err := ConnectFromEnv(); err != nil {
-		return nil, err
-	}
-	return db, nil
-}
-
-// DB exposes the shared *sql.DB instance.
-func DB() *sql.DB {
-	return db
-}
-
-// IsConnected reports whether a DB handle has been initialized.
-func IsConnected() bool {
-	return db != nil
-}
-
-func init() {
-	// If we've already re-exec'd with BLMS_LAUNCHED=1, skip.
-	if os.Getenv("BLMS_LAUNCHED") == "1" {
-		return
-	}
-
-	// Prefer ORACLE_LIB_DIR; otherwise fall back to ../oracle-client when running from Backend.
-	desired := strings.TrimSpace(os.Getenv("ORACLE_LIB_DIR"))
-	if desired == "" {
-		desired = filepath.Join("..", "oracle-client")
-	}
-
-	ld := strings.TrimSpace(os.Getenv("LD_LIBRARY_PATH"))
-	if ld == "" || !strings.Contains(ld, desired) {
-		var newLD string
-		if ld == "" {
-			newLD = desired
-		} else {
-			newLD = desired + ":" + ld
-		}
-
-		env := os.Environ()
-		// Replace or append LD_LIBRARY_PATH in env list
-		replaced := false
-		for i, e := range env {
-			if strings.HasPrefix(e, "LD_LIBRARY_PATH=") {
-				env[i] = "LD_LIBRARY_PATH=" + newLD
-				replaced = true
+		i += len(k)
+		j := i
+		for j < len(lower) {
+			c := lower[j]
+			if c == ')' || c == '(' || c == ' ' || c == '\n' || c == '\r' || c == '\t' {
 				break
 			}
+			j++
 		}
-		if !replaced {
-			env = append(env, "LD_LIBRARY_PATH="+newLD)
-		}
-		env = append(env, "BLMS_LAUNCHED=1")
-
-		exe, err := os.Executable()
-		if err != nil {
-			log.Printf("failed to determine executable for re-exec: %v", err)
-			return
-		}
-
-		// Re-exec the current process so the dynamic loader sees LD_LIBRARY_PATH.
-		if err := syscall.Exec(exe, os.Args, env); err != nil {
-			log.Printf("re-exec failed: %v", err)
-		}
+		return connStr[i:j]
 	}
+
+	host := extract("host")
+	port := extract("port")
+	svc := extract("service_name")
+
+	if host != "" && port != "" && svc != "" {
+		// Build simple URL form with go-ora supported options
+		jdbc := fmt.Sprintf("oracle://%s:%s@%s:%s/%s", url.PathEscape(user), url.PathEscape(password), host, port, svc)
+		opts := url.Values{}
+		if configDir != "" {
+			opts.Set("WALLET", configDir)
+			opts.Set("AUTH TYPE", "TCPS")
+			opts.Set("SSL", "TRUE")
+			opts.Set("SSL VERIFY", "TRUE")
+		}
+		if encoded := opts.Encode(); encoded != "" {
+			jdbc += "?" + encoded
+		}
+		return jdbc, nil
+	}
+
+	// Fallback: pass the full descriptor as connectString query parameter
+	escaped := url.QueryEscape(connStr)
+	jdbc := fmt.Sprintf("oracle://%s:%s@?connectString=%s", url.PathEscape(user), url.PathEscape(password), escaped)
+	if configDir != "" {
+		jdbc += fmt.Sprintf("&WALLET=%s&AUTH+TYPE=TCPS&SSL=TRUE&SSL+VERIFY=TRUE", url.QueryEscape(configDir))
+	}
+	return jdbc, nil
 }

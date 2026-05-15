@@ -2,14 +2,15 @@
 <html lang="en">
     <head>
         <meta charset="UTF-8">
-        <title>BLMS - Admin</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>BLMS - Admin Console</title>
         <link rel="stylesheet" href="styles.css">
     </head>
     <body>
         <header>
             <div class="header-bar">
                 <div class="site-title">Basketball League Management System - Admin</div>
-                <a class="login-button" href="/auth.html">Login</a>
+                <a class="login-button" href="auth.html">Login</a>
             </div>
         </header>
 
@@ -90,12 +91,7 @@
                         <label>Club Manager Photo
                             <textarea id="team-manager-photo" rows="3" ></textarea>
                         </label>
-                        <label>Assistant Club Manager
-                            <input type="text" id="team-ass-manager">
-                        </label>
-                        <label>Assistant Manager Photo
-                            <textarea id="team-ass-manager-photo" rows="3" ></textarea>
-                        </label>
+                        <!-- Assistant manager fields removed to match DB schema -->
                         <label>Club Location ID
                             <input type="number" id="team-location-id">
                         </label>
@@ -383,8 +379,6 @@
                     teamLogo: normalizeBase64(document.getElementById("team-logo").value),
                     clubManagerId: toNumber(document.getElementById("team-manager-id").value),
                     clubManagerPhoto: normalizeBase64(document.getElementById("team-manager-photo").value),
-                    assClubManager: document.getElementById("team-ass-manager").value.trim(),
-                    assClubManagerPhoto: normalizeBase64(document.getElementById("team-ass-manager-photo").value),
                     clubLocationId: toNumber(document.getElementById("team-location-id").value),
                     clubHistory: document.getElementById("team-history").value.trim()
                 };
@@ -447,6 +441,14 @@
                 status.className = "status-message " + (isError ? "status-error" : "status-success");
             }
 
+            const API_BASE = (window.location.protocol === "file:" || window.location.port !== "4000")
+                ? "http://localhost:4000"
+                : "";
+
+            function apiUrl(path) {
+                return API_BASE + path;
+            }
+
             async function requestJSON(url, method, payload) {
                 const options = {
                     method: method,
@@ -456,7 +458,7 @@
                     options.body = JSON.stringify(payload);
                 }
 
-                const response = await fetch(url, options);
+                const response = await fetch(apiUrl(url), options);
                 if (!response.ok) {
                     const errorText = await response.text();
                     throw new Error(errorText || ("Request failed with status " + response.status));
@@ -478,12 +480,12 @@
                 const statsBody = document.getElementById("stats-admin-body");
 
                 const [playersResponse, teamsResponse, stadiumsResponse, managersResponse, fixturesResponse, statsResponse] = await Promise.all([
-                    fetch("/api/players"),
-                    fetch("/api/teams"),
-                    fetch("/api/stadiums"),
-                    fetch("/api/managers"),
-                    fetch("/api/fixtures"),
-                    fetch("/api/stats")
+                    fetch(apiUrl("/api/players")),
+                    fetch(apiUrl("/api/teams")),
+                    fetch(apiUrl("/api/stadiums")),
+                    fetch(apiUrl("/api/managers")),
+                    fetch(apiUrl("/api/fixtures")),
+                    fetch(apiUrl("/api/stats"))
                 ]);
 
                 if (!playersResponse.ok || !teamsResponse.ok || !stadiumsResponse.ok || !managersResponse.ok || !fixturesResponse.ok || !statsResponse.ok) {
