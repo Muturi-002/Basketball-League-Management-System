@@ -19,12 +19,7 @@ type Manager struct {
 }
 
 func ListManagers() ([]Manager, error) {
-	conn, err := EnsureConnected()
-	if err != nil {
-		return nil, fmt.Errorf("managers list: %w", err)
-	}
-
-	rows, err := conn.Query(`
+	return queryList("managers list", "query managers", "iterate managers", `
 		SELECT
 			manager_id,
 			first_name,
@@ -35,14 +30,7 @@ func ListManagers() ([]Manager, error) {
 			team_id,
 			manager_history
 		FROM team_managers
-		ORDER BY manager_id`)
-	if err != nil {
-		return nil, fmt.Errorf("query managers: %w", err)
-	}
-	defer rows.Close()
-
-	managers := make([]Manager, 0)
-	for rows.Next() {
+		ORDER BY manager_id`, func(rows *sql.Rows) (Manager, error) {
 		var manager Manager
 		var (
 			middleName     sql.NullString
@@ -60,21 +48,15 @@ func ListManagers() ([]Manager, error) {
 			&manager.TeamID,
 			&managerHistory,
 		); err != nil {
-			return nil, fmt.Errorf("scan manager row: %w", err)
+			return Manager{}, fmt.Errorf("scan manager row: %w", err)
 		}
 
 		manager.MiddleName = nullStringPtr(middleName)
 		manager.ManagerPhoto = nullStringPtr(managerPhoto)
 		manager.ManagerHistory = nullStringPtr(managerHistory)
 
-		managers = append(managers, manager)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate managers: %w", err)
-	}
-
-	return managers, nil
+		return manager, nil
+	})
 }
 
 func GetManagerByID(managerID int64) (*Manager, error) {

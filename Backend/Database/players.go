@@ -9,28 +9,23 @@ import (
 // Player maps every column from the players table.
 // PlayerPhoto is an OCI Object Storage URL stored as VARCHAR(200) — not binary.
 type Player struct {
-	PlayerID            int64     `json:"playerId"`
-	FirstName           string    `json:"firstName"`
-	MiddleName          *string   `json:"middleName,omitempty"`
-	LastName            string    `json:"lastName"`
-	PlayerPhoto         *string   `json:"playerPhoto,omitempty"`
-	DateOfBirth         time.Time `json:"dateOfBirth"`
-	Age                 int       `json:"age"`
-	TeamID              int64     `json:"teamId"`
-	PlayerHistory       *string   `json:"playerHistory,omitempty"`
-	JerseyNumber        int       `json:"jerseyNumber"`
-	PositionCode        string    `json:"positionCode"`
-	CurrentSeasonStats  *string   `json:"currentSeasonStats,omitempty"`
-	CareerStats         *string   `json:"careerStats,omitempty"`
+	PlayerID           int64     `json:"playerId"`
+	FirstName          string    `json:"firstName"`
+	MiddleName         *string   `json:"middleName,omitempty"`
+	LastName           string    `json:"lastName"`
+	PlayerPhoto        *string   `json:"playerPhoto,omitempty"`
+	DateOfBirth        time.Time `json:"dateOfBirth"`
+	Age                int       `json:"age"`
+	TeamID             int64     `json:"teamId"`
+	PlayerHistory      *string   `json:"playerHistory,omitempty"`
+	JerseyNumber       int       `json:"jerseyNumber"`
+	PositionCode       string    `json:"positionCode"`
+	CurrentSeasonStats *string   `json:"currentSeasonStats,omitempty"`
+	CareerStats        *string   `json:"careerStats,omitempty"`
 }
 
 func ListPlayers() ([]Player, error) {
-	conn, err := EnsureConnected()
-	if err != nil {
-		return nil, fmt.Errorf("players list: %w", err)
-	}
-
-	rows, err := conn.Query(`
+	return queryList("players list", "query players", "iterate players", `
 		SELECT
 			player_id,
 			first_name,
@@ -46,14 +41,7 @@ func ListPlayers() ([]Player, error) {
 			current_season_stats,
 			career_stats
 		FROM players
-		ORDER BY player_id`)
-	if err != nil {
-		return nil, fmt.Errorf("query players: %w", err)
-	}
-	defer rows.Close()
-
-	players := make([]Player, 0)
-	for rows.Next() {
+		ORDER BY player_id`, func(rows *sql.Rows) (Player, error) {
 		var player Player
 		var (
 			middleName         sql.NullString
@@ -78,7 +66,7 @@ func ListPlayers() ([]Player, error) {
 			&currentSeasonStats,
 			&careerStats,
 		); err != nil {
-			return nil, fmt.Errorf("scan player row: %w", err)
+			return Player{}, fmt.Errorf("scan player row: %w", err)
 		}
 
 		player.MiddleName = nullStringPtr(middleName)
@@ -87,14 +75,8 @@ func ListPlayers() ([]Player, error) {
 		player.CurrentSeasonStats = nullStringPtr(currentSeasonStats)
 		player.CareerStats = nullStringPtr(careerStats)
 
-		players = append(players, player)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate players: %w", err)
-	}
-
-	return players, nil
+		return player, nil
+	})
 }
 
 func GetPlayerByID(playerID int64) (*Player, error) {
@@ -157,13 +139,4 @@ func GetPlayerByID(playerID int64) (*Player, error) {
 	player.CareerStats = nullStringPtr(careerStats)
 
 	return &player, nil
-}
-
-// nullStringPtr converts a sql.NullString to a *string.
-func nullStringPtr(value sql.NullString) *string {
-	if !value.Valid {
-		return nil
-	}
-	result := value.String
-	return &result
 }

@@ -22,12 +22,7 @@ type Fixture struct {
 }
 
 func ListFixtures() ([]Fixture, error) {
-	conn, err := EnsureConnected()
-	if err != nil {
-		return nil, fmt.Errorf("fixtures list: %w", err)
-	}
-
-	rows, err := conn.Query(`
+	return queryList("fixtures list", "query fixtures", "iterate fixtures", `
 		SELECT
 			fixture_id,
 			fixture_date,
@@ -41,14 +36,7 @@ func ListFixtures() ([]Fixture, error) {
 			home_score,
 			away_score
 		FROM fixtures
-		ORDER BY fixture_date, fixture_time`)
-	if err != nil {
-		return nil, fmt.Errorf("query fixtures: %w", err)
-	}
-	defer rows.Close()
-
-	fixtures := make([]Fixture, 0)
-	for rows.Next() {
+		ORDER BY fixture_date, fixture_time`, func(rows *sql.Rows) (Fixture, error) {
 		var fixture Fixture
 		var (
 			fixtureStatus sql.NullString
@@ -68,19 +56,13 @@ func ListFixtures() ([]Fixture, error) {
 			&homeScore,
 			&awayScore,
 		); err != nil {
-			return nil, fmt.Errorf("scan fixture row: %w", err)
+			return Fixture{}, fmt.Errorf("scan fixture row: %w", err)
 		}
 		fixture.FixtureStatus = fixtureStatus.String
 		fixture.HomeScore = nullInt64Ptr(homeScore)
 		fixture.AwayScore = nullInt64Ptr(awayScore)
-		fixtures = append(fixtures, fixture)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate fixtures: %w", err)
-	}
-
-	return fixtures, nil
+		return fixture, nil
+	})
 }
 
 func GetFixtureByID(fixtureID int64) (*Fixture, error) {

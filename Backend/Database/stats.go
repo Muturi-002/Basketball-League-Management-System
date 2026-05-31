@@ -17,12 +17,7 @@ type Stat struct {
 }
 
 func ListStats() ([]Stat, error) {
-	conn, err := EnsureConnected()
-	if err != nil {
-		return nil, fmt.Errorf("stats list: %w", err)
-	}
-
-	rows, err := conn.Query(`
+	return queryList("stats list", "query stats", "iterate stats", `
 		SELECT
 			team_stat_id,
 			team_id,
@@ -32,14 +27,7 @@ func ListStats() ([]Stat, error) {
 			league_points,
 			points_scored
 		FROM team_statistics
-		ORDER BY league_points DESC, wins DESC`)
-	if err != nil {
-		return nil, fmt.Errorf("query stats: %w", err)
-	}
-	defer rows.Close()
-
-	stats := make([]Stat, 0)
-	for rows.Next() {
+		ORDER BY league_points DESC, wins DESC`, func(rows *sql.Rows) (Stat, error) {
 		var stat Stat
 		if err := rows.Scan(
 			&stat.StatID,
@@ -50,16 +38,10 @@ func ListStats() ([]Stat, error) {
 			&stat.Points,
 			&stat.PointsScored,
 		); err != nil {
-			return nil, fmt.Errorf("scan stat row: %w", err)
+			return Stat{}, fmt.Errorf("scan stat row: %w", err)
 		}
-		stats = append(stats, stat)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate stats: %w", err)
-	}
-
-	return stats, nil
+		return stat, nil
+	})
 }
 
 func GetStatByID(statID int64) (*Stat, error) {
