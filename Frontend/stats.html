@@ -20,7 +20,7 @@
                         <li><a href="fixtures.html">Fixtures</a></li>
                     </ul>
                 </nav>
-                <a class="login-button" href="auth.html">Login</a>
+                <a class="login-button" href="auth.html">Sign In</a>
             </div>
         </header>
 
@@ -42,7 +42,6 @@
                             <th>Losses</th>
                             <th>Points</th>
                             <th>Points Scored</th>
-                            <th>Points Allowed</th>
                         </tr>
                         </thead>
                         <tbody id="stats-body"></tbody>
@@ -120,7 +119,6 @@
                             <td>${stat.losses}</td>
                             <td>${stat.points}</td>
                             <td>${stat.pointsScored}</td>
-                            <td>${stat.pointsAllowed}</td>
                         `;
                         body.appendChild(row);
                     });

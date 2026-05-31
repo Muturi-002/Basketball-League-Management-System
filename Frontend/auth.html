@@ -1,32 +1,283 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BLMS - Login</title>
-    <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-<header>
-    <div class="header-bar">
-        <div class="site-title">Basketball League Management System</div>
-        <!-- No main navigation here as per specification; login is the focus. -->
-        <a class="login-button" href="auth.html">Login</a>
-    </div>
-</header>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>BLMS - Member Portal</title>
+        <link rel="stylesheet" href="styles.css">
+    </head>
 
-<div class="main-container">
-    <main>
-        <h1>User Authentication</h1>
-        <p>
-            This page will host the login and authentication interface for users.
-        </p>
-        <!-- Form and validation logic will be added in later steps. -->
-    </main>
+    <body>
+        <header>
+            <div class="header-bar">
+                <div class="site-title">Basketball League Management System</div>
+            </div>
+        </header>
 
-    <div class="footer">
-        &copy; 2026 Basketball League Management System
-    </div>
-</div>
-</body>
+        <main class="main-container">
+            <h1>Account Portal</h1>
+
+            <div class="button-group">
+                <button type="button" class="login-button" id="backButton">Back</button>
+            </div>
+
+            <section class="status-message" id="pageMessage" aria-live="polite">
+                Sign In/Up to get your personalized account of the league.
+            </section>
+
+            <section class="card-section" id="memberCard" hidden>
+                <h2>Login Successful</h2>
+                <p id="memberCardText">Your member account is active.</p>
+                <div class="profile-card">
+                    <div class="profile-grid">
+                        <div>
+                            <strong>Username</strong>
+                            <div id="memberUserId">-</div>
+                        </div>
+                        <div>
+                            <strong>Name</strong>
+                            <div id="memberName">-</div>
+                        </div>
+                        <div>
+                            <strong>Email</strong>
+                            <div id="memberEmail">-</div>
+                        </div>
+                        <div>
+                            <strong>Favorite Club</strong>
+                            <div id="memberTeam">-</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="button-group">
+                    <button type="button" class="login-button" id="logoutButton">Log out</button>
+                </div>
+            </section>
+
+            <section class="card-section">
+                <h2>Member Login</h2>
+                
+                <form id="loginForm" class="data-form">
+                    <label>
+                        Username / Email
+                        <input id="loginIdentifier" name="identifier" type="text" placeholder="U0000001 or name@example.com" autocomplete="username" required>
+                    </label>
+                    <label>
+                        Password
+                        <input id="loginPassword" name="password" type="password" placeholder="Enter your password" autocomplete="current-password" required>
+                    </label>
+                    <div class="button-group">
+                        <button type="submit" id="loginButton">Sign in</button>
+                    </div>
+                </form>
+                <div class="status-message" id="loginMessage" aria-live="polite"></div>
+            </section>
+
+            <section class="card-section">
+                <h2>Create Account</h2>
+                
+                <form id="registerForm" class="data-form">
+                    <label>
+                        Username
+                        <input id="username" name="username" type="text" maxlength="8" placeholder="U0000001" autocomplete="username" required>
+                    </label>
+                    <label>
+                        Email Address
+                        <input id="emailAddress" name="emailAddress" type="email" placeholder="name@example.com" autocomplete="email" required>
+                    </label>
+                    <label>
+                        First Name
+                        <input id="firstName" name="firstName" type="text" placeholder="First name" autocomplete="given-name" required>
+                    </label>
+                    <label>
+                        Last Name
+                        <input id="lastName" name="lastName" type="text" placeholder="Last name" autocomplete="family-name" required>
+                    </label>
+                    <label>
+                        Password
+                        <input id="registerPassword" name="password" type="password" placeholder="Create a password" autocomplete="new-password" required>
+                    </label>
+                    <label>
+                        Favorite Team
+                        <select id="favTeamId" name="favTeamId" required>
+                            <option value="">Loading clubs...</option>
+                        </select>
+                    </label>
+                    <div class="button-group">
+                        <button type="submit" id="registerButton">Create account</button>
+                    </div>
+                </form>
+                <div class="status-message" id="registerMessage" aria-live="polite"></div>
+            </section>
+        </main>
+
+        <script>
+            const teams = new Map();
+            const memberCard = document.getElementById('memberCard');
+            const memberUserId = document.getElementById('memberUserId');
+            const memberName = document.getElementById('memberName');
+            const memberEmail = document.getElementById('memberEmail');
+            const memberTeam = document.getElementById('memberTeam');
+            const loginForm = document.getElementById('loginForm');
+            const registerForm = document.getElementById('registerForm');
+            const loginMessage = document.getElementById('loginMessage');
+            const registerMessage = document.getElementById('registerMessage');
+            const pageMessage = document.getElementById('pageMessage');
+            const loginButton = document.getElementById('loginButton');
+            const registerButton = document.getElementById('registerButton');
+            const logoutButton = document.getElementById('logoutButton');
+            const favTeamSelect = document.getElementById('favTeamId');
+
+            const memberStorageKey = 'blms-member-account';
+
+            function setMessage(node, message, kind) {
+                node.textContent = message || '';
+                node.className = 'status-message' + (kind ? ' status-' + kind : '');
+            }
+
+            function setBusy(button, busy, label) {
+                button.disabled = busy;
+                button.textContent = busy ? 'Please wait...' : label;
+            }
+
+            function teamLabel(teamId) {
+                return teams.get(String(teamId)) || (teamId ? `Team ${teamId}` : 'No favorite club selected');
+            }
+
+            function showMember(member) {
+                if (!member) {
+                    memberCard.hidden = true;
+                    return;
+                }
+
+                memberUserId.textContent = member.username || member.userId || '-';
+                memberName.textContent = [member.firstName, member.lastName].filter(Boolean).join(' ') || '-';
+                memberEmail.textContent = member.emailAddress || '-';
+                memberTeam.textContent = teamLabel(member.favTeamId);
+                memberCard.hidden = false;
+                sessionStorage.setItem(memberStorageKey, JSON.stringify(member));
+            }
+
+            function hydrateFromStorage() {
+                const saved = sessionStorage.getItem(memberStorageKey);
+                if (!saved) {
+                    return;
+                }
+
+                try {
+                    showMember(JSON.parse(saved));
+                    setMessage(pageMessage, 'Welcome back. Your saved member profile is loaded.', 'success');
+                } catch (error) {
+                    sessionStorage.removeItem(memberStorageKey);
+                }
+            }
+
+            async function loadTeams() {
+                try {
+                    const response = await fetch('/api/teams');
+                    const data = await response.json();
+
+                    favTeamSelect.innerHTML = '<option value="">Choose a favorite club</option>';
+                    data.forEach((team) => {
+                        teams.set(String(team.clubId), team.teamName);
+                        const option = document.createElement('option');
+                        option.value = String(team.clubId);
+                        option.textContent = team.teamName;
+                        favTeamSelect.appendChild(option);
+                    });
+                } catch (error) {
+                    favTeamSelect.innerHTML = '<option value="">Unable to load clubs</option>';
+                    setMessage(registerMessage, 'Could not load club options. Refresh the page and try again.', 'error');
+                }
+            }
+
+            loginForm.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                setMessage(loginMessage, '', '');
+                setBusy(loginButton, true, 'Sign in');
+
+                const payload = {
+                    identifier: document.getElementById('loginIdentifier').value.trim(),
+                    password: document.getElementById('loginPassword').value
+                };
+
+                try {
+                    const response = await fetch('/api/auth/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(data.error || 'Login failed');
+                    }
+
+                    showMember(data.member);
+                    setMessage(loginMessage, data.message || 'Login successful.', 'success');
+                    setMessage(pageMessage, 'Login successful. Your member account is active.', 'success');
+                } catch (error) {
+                    setMessage(loginMessage, error.message, 'error');
+                } finally {
+                    setBusy(loginButton, false, 'Sign in');
+                }
+            });
+
+            registerForm.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                setMessage(registerMessage, '', '');
+                setBusy(registerButton, true, 'Create account');
+
+                const payload = {
+                    username: document.getElementById('username').value.trim(),
+                    firstName: document.getElementById('firstName').value.trim(),
+                    lastName: document.getElementById('lastName').value.trim(),
+                    emailAddress: document.getElementById('emailAddress').value.trim(),
+                    password: document.getElementById('registerPassword').value,
+                    favTeamId: favTeamSelect.value
+                };
+
+                try {
+                    const response = await fetch('/api/auth/register', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(data.error || 'Account creation failed');
+                    }
+
+                    showMember(data.member);
+                    document.getElementById('loginIdentifier').value = data.member.username;
+                    document.getElementById('loginPassword').value = '';
+                    setMessage(registerMessage, data.message || 'Account created successfully.', 'success');
+                    setMessage(pageMessage, 'Account created successfully. You can now sign in.', 'success');
+                } catch (error) {
+                    setMessage(registerMessage, error.message, 'error');
+                } finally {
+                    setBusy(registerButton, false, 'Create account');
+                }
+            });
+
+            logoutButton.addEventListener('click', () => {
+                sessionStorage.removeItem(memberStorageKey);
+                memberCard.hidden = true;
+                setMessage(loginMessage, 'Signed out.', 'success');
+                setMessage(pageMessage, 'You are signed out. Sign in again or create a new account.', 'success');
+                window.location.href = 'home.html';
+            });
+
+            document.getElementById('backButton').addEventListener('click', () => {
+                if (document.referrer) {
+                    window.history.back();
+                } else {
+                    window.location.href = 'home.html';
+                }
+            });
+
+            hydrateFromStorage();
+            loadTeams();
+        </script>
+    </body>
 </html>

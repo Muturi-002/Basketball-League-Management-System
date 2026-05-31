@@ -5,12 +5,57 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>BLMS - Admin Console</title>
         <link rel="stylesheet" href="styles.css">
+        <style>
+            /* ── Stats section two-panel layout ── */
+            .stats-panels {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 16px;
+                margin-bottom: 18px;
+            }
+            .stats-subpanel {
+                padding: 14px 16px;
+                border: 1px solid var(--border);
+                border-radius: var(--radius);
+                background: var(--surface-2);
+            }
+            .subpanel-label {
+                font-family: var(--font-display);
+                font-size: 0.78rem;
+                font-weight: 700;
+                letter-spacing: 0.08em;
+                text-transform: uppercase;
+                color: var(--text-label);
+                margin-bottom: 12px;
+            }
+            /* Checkboxes sit inline rather than stacking */
+            .checkbox-row {
+                display: flex;
+                align-items: center;
+                gap: 7px;
+                font-size: 0.82rem;
+                font-weight: 400;
+                text-transform: none;
+                letter-spacing: 0;
+                color: var(--text);
+                padding-top: 2px;
+            }
+            .checkbox-row input[type="checkbox"] {
+                width: 14px;
+                height: 14px;
+                flex-shrink: 0;
+                accent-color: var(--green);
+            }
+            @media (max-width: 768px) {
+                .stats-panels { grid-template-columns: 1fr; }
+            }
+        </style>
     </head>
     <body>
         <header>
             <div class="header-bar">
                 <div class="site-title">Basketball League Management System - Admin</div>
-                <a class="login-button" href="auth.html">Login</a>
+                <a class="login-button" href="admin-login.html" id="adminLogout">Log out</a>
             </div>
         </header>
 
@@ -25,7 +70,7 @@
                     <h2>Player Management</h2>
                     <form class="data-form">
                         <label>Player ID (required for update/delete)
-                            <input type="number" id="player-id" >
+                            <input type="number" id="player-id" min="1" step="1" data-positive-id="true">
                         </label>
                         <label>First Name
                             <input type="text" id="player-first-name">
@@ -43,7 +88,7 @@
                             <input type="number" id="player-age" min="0">
                         </label>
                         <label>Team ID
-                            <input type="number" id="player-team-id">
+                            <input type="number" id="player-team-id" min="1" step="1" data-positive-id="true">
                         </label>
                         <label>Player Photo
                             <textarea id="player-photo" rows="3" ></textarea>
@@ -53,6 +98,7 @@
                         </label>
                         <div class="button-group">
                             <button type="button" id="create-player">Create Player</button>
+                            <button type="button" id="load-player">Load Player</button>
                             <button type="button" id="update-player">Update Player</button>
                             <button type="button" id="delete-player">Delete Player</button>
                         </div>
@@ -77,7 +123,7 @@
                     <h2>Team Management</h2>
                     <form class="data-form">
                         <label>Team ID (required)
-                            <input type="number" id="team-id">
+                            <input type="number" id="team-id" min="1" step="1" data-positive-id="true">
                         </label>
                         <label>Team Name
                             <input type="text" id="team-name">
@@ -86,20 +132,21 @@
                             <textarea id="team-logo" rows="3" ></textarea>
                         </label>
                         <label>Club Manager ID
-                            <input type="number" id="team-manager-id">
+                            <input type="number" id="team-manager-id" min="1" step="1" data-positive-id="true">
                         </label>
                         <label>Club Manager Photo
                             <textarea id="team-manager-photo" rows="3" ></textarea>
                         </label>
                         <!-- Assistant manager fields removed to match DB schema -->
                         <label>Club Location ID
-                            <input type="number" id="team-location-id">
+                            <input type="number" id="team-location-id" min="1" step="1" data-positive-id="true">
                         </label>
                         <label>Club History
                             <textarea id="team-history" rows="3"></textarea>
                         </label>
                         <div class="button-group">
                             <button type="button" id="create-team">Create Team</button>
+                            <button type="button" id="load-team">Load Team</button>
                             <button type="button" id="update-team">Update Team</button>
                             <button type="button" id="delete-team">Delete Team</button>
                         </div>
@@ -123,7 +170,7 @@
                     <h2>Stadium Management</h2>
                     <form class="data-form">
                         <label>Stadium ID (required)
-                            <input type="number" id="stadium-id">
+                            <input type="number" id="stadium-id" min="1" step="1" data-positive-id="true">
                         </label>
                         <label>Stadium Name
                             <input type="text" id="stadium-name">
@@ -159,7 +206,7 @@
                     <h2>Manager Management</h2>
                     <form class="data-form">
                         <label>Manager ID (required for update/delete)
-                            <input type="number" id="manager-id">
+                            <input type="number" id="manager-id" min="1" step="1" data-positive-id="true">
                         </label>
                         <label>First Name
                             <input type="text" id="manager-first-name">
@@ -174,7 +221,7 @@
                             <input type="text" id="manager-type" placeholder="Head Coach, Assistant Coach...">
                         </label>
                         <label>Team ID
-                            <input type="number" id="manager-team-id">
+                            <input type="number" id="manager-team-id" min="1" step="1" data-positive-id="true">
                         </label>
                         <label>Manager Photo
                             <textarea id="manager-photo" rows="3"></textarea>
@@ -184,6 +231,7 @@
                         </label>
                         <div class="button-group">
                             <button type="button" id="create-manager">Create Manager</button>
+                            <button type="button" id="load-manager">Load Manager</button>
                             <button type="button" id="update-manager">Update Manager</button>
                             <button type="button" id="delete-manager">Delete Manager</button>
                         </div>
@@ -207,7 +255,7 @@
                     <h2>Fixture Management</h2>
                     <form class="data-form">
                         <label>Fixture ID (required for update/delete)
-                            <input type="number" id="fixture-id">
+                            <input type="number" id="fixture-id" min="1" step="1" data-positive-id="true">
                         </label>
                         <label>Fixture Date
                             <input type="date" id="fixture-date">
@@ -216,16 +264,17 @@
                             <input type="time" id="fixture-time">
                         </label>
                         <label>Home Team ID
-                            <input type="number" id="fixture-home-team-id">
+                            <input type="number" id="fixture-home-team-id" min="1" step="1" data-positive-id="true">
                         </label>
                         <label>Away Team ID
-                            <input type="number" id="fixture-away-team-id">
+                            <input type="number" id="fixture-away-team-id" min="1" step="1" data-positive-id="true">
                         </label>
                         <label>Fixture Location
                             <input type="text" id="fixture-location" placeholder="Arena/Stadium">
                         </label>
                         <div class="button-group">
                             <button type="button" id="create-fixture">Create Fixture</button>
+                            <button type="button" id="load-fixture">Load Fixture</button>
                             <button type="button" id="update-fixture">Update Fixture</button>
                             <button type="button" id="delete-fixture">Delete Fixture</button>
                         </div>
@@ -249,37 +298,70 @@
 
                 <section class="card-section">
                     <h2>Results Management (Stats)</h2>
-                    <form class="data-form">
-                        <label>Stat ID (required for update/delete)
-                            <input type="number" id="stat-id">
-                        </label>
-                        <label>Team ID
-                            <input type="number" id="stat-team-id">
-                        </label>
-                        <label>Games Played
-                            <input type="number" id="stat-games-played" min="0">
-                        </label>
-                        <label>Wins
-                            <input type="number" id="stat-wins" min="0">
-                        </label>
-                        <label>Losses
-                            <input type="number" id="stat-losses" min="0">
-                        </label>
-                        <label>Points
-                            <input type="number" id="stat-points" min="0">
-                        </label>
-                        <label>Points Scored
-                            <input type="number" id="stat-points-scored" min="0">
-                        </label>
-                        <label>Points Allowed
-                            <input type="number" id="stat-points-allowed" min="0">
-                        </label>
-                        <div class="button-group">
-                            <button type="button" id="create-stat">Create Result</button>
-                            <button type="button" id="update-stat">Update Result</button>
-                            <button type="button" id="delete-stat">Delete Result</button>
+
+                    <div class="stats-panels">
+                        <!-- Panel A: Score entry -->
+                        <div class="stats-subpanel">
+                            <p class="subpanel-label">&#9654; Apply Fixture Score</p>
+                            <form class="data-form">
+                                <label>Fixture Filter
+                                    <span class="checkbox-row"><input type="checkbox" id="fixture-past-only"> Show only current or past fixtures</span>
+                                </label>
+                                <label>Fixture ID
+                                    <input type="number" id="score-fixture-id" min="1" step="1" data-positive-id="true">
+                                </label>
+                                <div id="score-fixture-warning" class="status-message" style="display:none;"></div>
+                                <div class="button-group">
+                                    <button type="button" id="load-score-fixture">Load Fixture</button>
+                                </div>
+                                <label>Home Score
+                                    <input type="number" id="score-home" min="0">
+                                </label>
+                                <label>Away Score
+                                    <input type="number" id="score-away" min="0">
+                                </label>
+                                <label>Apply Result
+                                    <span class="checkbox-row"><input type="checkbox" id="score-apply-result"> Mark fixture COMPLETED</span>
+                                </label>
+                                <div class="button-group">
+                                    <button type="button" id="apply-fixture-score" disabled>Apply Score</button>
+                                </div>
+                            </form>
                         </div>
-                    </form>
+
+                        <!-- Panel B: Stat record CRUD -->
+                        <div class="stats-subpanel">
+                            <p class="subpanel-label">&#9654; Stat Record</p>
+                            <form class="data-form" id="stat-record-form">
+                                <label>Stat ID (update/delete)
+                                    <input type="number" id="stat-id" min="1" step="1" data-positive-id="true">
+                                </label>
+                                <label>Team ID
+                                    <input type="number" id="stat-team-id" min="1" step="1" data-positive-id="true">
+                                </label>
+                                <label>Games Played
+                                    <input type="number" id="stat-games-played" min="0">
+                                </label>
+                                <label>Wins
+                                    <input type="number" id="stat-wins" min="0">
+                                </label>
+                                <label>Losses
+                                    <input type="number" id="stat-losses" min="0">
+                                </label>
+                                <label>Points
+                                    <input type="number" id="stat-points" min="0">
+                                </label>
+                                <label>Points Scored
+                                    <input type="number" id="stat-points-scored" min="0">
+                                </label>
+                                <div class="button-group">
+                                    <button type="button" id="create-stat">Create</button>
+                                    <button type="button" id="update-stat">Update</button>
+                                    <button type="button" id="delete-stat">Delete</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
                     <div class="table-wrapper">
                         <table class="data-table">
                             <thead>
@@ -291,7 +373,6 @@
                                 <th>L</th>
                                 <th>Pts</th>
                                 <th>Scored</th>
-                                <th>Allowed</th>
                             </tr>
                             </thead>
                             <tbody id="stats-admin-body"></tbody>
@@ -327,6 +408,57 @@
             function nullableText(value) {
                 const trimmed = (value || "").trim();
                 return trimmed === "" ? null : trimmed;
+            }
+
+            function clampPositiveIdInput(input) {
+                if (input.value.trim() === "") {
+                    return;
+                }
+                const numericValue = Number(input.value);
+                if (!Number.isFinite(numericValue) || numericValue < 1) {
+                    input.value = "1";
+                    return;
+                }
+                input.value = String(Math.floor(numericValue));
+            }
+
+            function attachPositiveIdGuards() {
+                document.querySelectorAll('input[data-positive-id="true"]').forEach((input) => {
+                    input.addEventListener("input", () => clampPositiveIdInput(input));
+                    input.addEventListener("blur", () => clampPositiveIdInput(input));
+                });
+            }
+
+            function toDateInputValue(value) {
+                if (!value) {
+                    return "";
+                }
+                const parsed = new Date(value);
+                if (Number.isNaN(parsed.getTime())) {
+                    return "";
+                }
+                const year = parsed.getFullYear();
+                const month = String(parsed.getMonth() + 1).padStart(2, "0");
+                const day = String(parsed.getDate()).padStart(2, "0");
+                return year + "-" + month + "-" + day;
+            }
+
+            function toTimeInputValue(value) {
+                if (!value) {
+                    return "";
+                }
+                const parsed = new Date(value);
+                if (Number.isNaN(parsed.getTime())) {
+                    return "";
+                }
+                const hours = String(parsed.getHours()).padStart(2, "0");
+                const minutes = String(parsed.getMinutes()).padStart(2, "0");
+                return hours + ":" + minutes;
+            }
+
+            function setInputValue(id, value) {
+                const input = document.getElementById(id);
+                input.value = value == null ? "" : String(value);
             }
 
             function formatDate(value) {
@@ -430,9 +562,31 @@
                     wins: toNumber(document.getElementById("stat-wins").value),
                     losses: toNumber(document.getElementById("stat-losses").value),
                     points: toNumber(document.getElementById("stat-points").value),
-                    pointsScored: toNumber(document.getElementById("stat-points-scored").value),
-                    pointsAllowed: toNumber(document.getElementById("stat-points-allowed").value)
+                    pointsScored: toNumber(document.getElementById("stat-points-scored").value)
                 };
+            }
+
+            function setScoreUpdateEnabled(enabled) {
+                const button = document.getElementById("apply-fixture-score");
+                button.disabled = !enabled;
+            }
+
+            function setStatRecordingEnabled(enabled) {
+                document.querySelectorAll("#stat-record-form input, #stat-record-form button").forEach((element) => {
+                    element.disabled = !enabled;
+                });
+            }
+
+            function showFixtureWarning(message) {
+                const warning = document.getElementById("score-fixture-warning");
+                if (!message) {
+                    warning.style.display = "none";
+                    warning.textContent = "";
+                    return;
+                }
+                warning.textContent = message;
+                warning.className = "status-message status-error";
+                warning.style.display = "block";
             }
 
             function setStatus(message, isError) {
@@ -441,9 +595,22 @@
                 status.className = "status-message " + (isError ? "status-error" : "status-success");
             }
 
-            const API_BASE = (window.location.protocol === "file:" || window.location.port !== "4000")
-                ? "http://localhost:4000"
-                : "";
+            async function logoutAdmin() {
+                try {
+                    await fetch(apiUrl("/api/admin/logout"), {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" }
+                    });
+                } catch (error) {
+                    setStatus("Logout failed: " + error.message, true);
+                    return;
+                }
+                window.location.href = "admin-login.html";
+            }
+
+            const API_BASE = window.location.port === "4900"
+                ? ""
+                : "http://localhost:4900";
 
             function apiUrl(path) {
                 return API_BASE + path;
@@ -551,7 +718,16 @@
                 });
 
                 fixtureBody.innerHTML = "";
+                const pastOnly = document.getElementById("fixture-past-only").checked;
+                const today = new Date();
                 fixtures.forEach((fixture) => {
+                    const fixtureDate = fixture.fixtureDate ? new Date(fixture.fixtureDate) : null;
+                    if (pastOnly && fixtureDate) {
+                        // show only fixtures that are on or before today
+                        const ymdToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                        const ymdFixture = new Date(fixtureDate.getFullYear(), fixtureDate.getMonth(), fixtureDate.getDate());
+                        if (ymdFixture > ymdToday) return; // skip future fixtures
+                    }
                     const row = document.createElement("tr");
                     row.innerHTML = `
                         <td>${fixture.fixtureId}</td>
@@ -560,6 +736,8 @@
                         <td>${fixture.homeTeamId}</td>
                         <td>${fixture.awayTeamId}</td>
                         <td>${fixture.fixtureLocation || "N/A"}</td>
+                        <td>${fixture.homeScore != null ? fixture.homeScore : ''}</td>
+                        <td>${fixture.awayScore != null ? fixture.awayScore : ''}</td>
                     `;
                     fixtureBody.appendChild(row);
                 });
@@ -575,11 +753,116 @@
                         <td>${stat.losses}</td>
                         <td>${stat.points}</td>
                         <td>${stat.pointsScored}</td>
-                        <td>${stat.pointsAllowed}</td>
                     `;
                     statsBody.appendChild(row);
                 });
             }
+
+            async function loadPlayerDetails() {
+                const playerID = toNumber(document.getElementById("player-id").value);
+                if (!playerID) {
+                    throw new Error("Player ID is required to load a player.");
+                }
+
+                const player = await requestJSON("/api/admin/players/" + playerID, "GET");
+                setInputValue("player-first-name", player.firstName);
+                setInputValue("player-middle-name", player.middleName);
+                setInputValue("player-last-name", player.lastName);
+                setInputValue("player-photo", player.playerPhoto);
+                setInputValue("player-date-of-birth", toDateInputValue(player.dateOfBirth));
+                setInputValue("player-age", player.age);
+                setInputValue("player-team-id", player.teamId);
+                setInputValue("player-history", player.playerHistory);
+            }
+
+            async function loadTeamDetails() {
+                const teamID = toNumber(document.getElementById("team-id").value);
+                if (!teamID) {
+                    throw new Error("Team ID is required to load a team.");
+                }
+
+                const team = await requestJSON("/api/admin/teams/" + teamID, "GET");
+                setInputValue("team-name", team.teamName);
+                setInputValue("team-logo", team.teamLogo);
+                setInputValue("team-manager-id", team.clubManagerId);
+                setInputValue("team-manager-photo", team.clubManagerPhoto);
+                setInputValue("team-location-id", team.clubLocationId);
+                setInputValue("team-history", team.clubHistory);
+            }
+
+            async function loadManagerDetails() {
+                const managerID = toNumber(document.getElementById("manager-id").value);
+                if (!managerID) {
+                    throw new Error("Manager ID is required to load a manager.");
+                }
+
+                const manager = await requestJSON("/api/admin/managers/" + managerID, "GET");
+                setInputValue("manager-first-name", manager.firstName);
+                setInputValue("manager-middle-name", manager.middleName);
+                setInputValue("manager-last-name", manager.lastName);
+                setInputValue("manager-photo", manager.managerPhoto);
+                setInputValue("manager-type", manager.managerType);
+                setInputValue("manager-team-id", manager.teamId);
+                setInputValue("manager-history", manager.managerHistory);
+            }
+
+            async function loadFixtureDetails() {
+                const fixtureID = toNumber(document.getElementById("fixture-id").value);
+                if (!fixtureID) {
+                    throw new Error("Fixture ID is required to load a fixture.");
+                }
+
+                const fixture = await requestJSON("/api/admin/fixtures/" + fixtureID, "GET");
+                setInputValue("fixture-date", toDateInputValue(fixture.fixtureDate));
+                setInputValue("fixture-time", toTimeInputValue(fixture.fixtureTime));
+                setInputValue("fixture-home-team-id", fixture.homeTeamId);
+                setInputValue("fixture-away-team-id", fixture.awayTeamId);
+                setInputValue("fixture-location", fixture.fixtureLocation);
+            }
+
+            async function loadScoreFixtureDetails() {
+                const fixtureID = toNumber(document.getElementById("score-fixture-id").value);
+                if (!fixtureID) {
+                    throw new Error("Fixture ID is required to load score details.");
+                }
+
+                const fixture = await requestJSON("/api/admin/fixtures/" + fixtureID, "GET");
+                showFixtureWarning("");
+                setScoreUpdateEnabled(true);
+                setStatRecordingEnabled(true);
+                setStatus("Fixture " + fixture.fixtureId + " is available for score update.", false);
+                return fixture;
+            }
+
+            attachPositiveIdGuards();
+            setScoreUpdateEnabled(false);
+            setStatRecordingEnabled(false);
+
+            document.getElementById("score-fixture-id").addEventListener("input", () => {
+                setScoreUpdateEnabled(false);
+                setStatRecordingEnabled(false);
+                showFixtureWarning("");
+            });
+
+            // Filter fixtures by date (current or past) when checkbox is set
+            document.getElementById("fixture-past-only").addEventListener("change", async () => {
+                try {
+                    await loadAdminTables();
+                } catch (err) {
+                    setStatus("Failed to reload fixtures: " + err.message, true);
+                }
+            });
+
+            document.getElementById("load-score-fixture").addEventListener("click", async () => {
+                try {
+                    await loadScoreFixtureDetails();
+                } catch (error) {
+                    setScoreUpdateEnabled(false);
+                    setStatRecordingEnabled(false);
+                    showFixtureWarning("Warning: fixture record does not exist.");
+                    setStatus("Load score fixture failed: " + error.message, true);
+                }
+            });
 
             document.getElementById("create-player").addEventListener("click", async () => {
                 try {
@@ -588,6 +871,15 @@
                     setStatus("Player created successfully.", false);
                 } catch (error) {
                     setStatus("Create player failed: " + error.message, true);
+                }
+            });
+
+            document.getElementById("load-player").addEventListener("click", async () => {
+                try {
+                    await loadPlayerDetails();
+                    setStatus("Player details loaded.", false);
+                } catch (error) {
+                    setStatus("Load player failed: " + error.message, true);
                 }
             });
 
@@ -626,6 +918,15 @@
                     setStatus("Team created successfully.", false);
                 } catch (error) {
                     setStatus("Create team failed: " + error.message, true);
+                }
+            });
+
+            document.getElementById("load-team").addEventListener("click", async () => {
+                try {
+                    await loadTeamDetails();
+                    setStatus("Team details loaded.", false);
+                } catch (error) {
+                    setStatus("Load team failed: " + error.message, true);
                 }
             });
 
@@ -705,6 +1006,15 @@
                 }
             });
 
+            document.getElementById("load-manager").addEventListener("click", async () => {
+                try {
+                    await loadManagerDetails();
+                    setStatus("Manager details loaded.", false);
+                } catch (error) {
+                    setStatus("Load manager failed: " + error.message, true);
+                }
+            });
+
             document.getElementById("update-manager").addEventListener("click", async () => {
                 try {
                     const managerID = toNumber(document.getElementById("manager-id").value);
@@ -740,6 +1050,15 @@
                     setStatus("Fixture created successfully.", false);
                 } catch (error) {
                     setStatus("Create fixture failed: " + error.message, true);
+                }
+            });
+
+            document.getElementById("load-fixture").addEventListener("click", async () => {
+                try {
+                    await loadFixtureDetails();
+                    setStatus("Fixture details loaded.", false);
+                } catch (error) {
+                    setStatus("Load fixture failed: " + error.message, true);
                 }
             });
 
@@ -795,6 +1114,32 @@
                 }
             });
 
+            document.getElementById("apply-fixture-score").addEventListener("click", async () => {
+                try {
+                    const fixtureID = toNumber(document.getElementById("score-fixture-id").value);
+                    if (!fixtureID) throw new Error("Fixture ID is required to apply score.");
+                    await loadScoreFixtureDetails();
+                    const homeScore = document.getElementById("score-home").value;
+                    const awayScore = document.getElementById("score-away").value;
+                    const applyResult = document.getElementById("score-apply-result").checked;
+                    const payload = {};
+                    if (homeScore !== "") payload.homeScore = Number(homeScore);
+                    if (awayScore !== "") payload.awayScore = Number(awayScore);
+                    if (applyResult) payload.applyResult = true;
+                    if (!payload.homeScore && payload.homeScore !== 0 && !payload.awayScore && payload.awayScore !== 0 && !payload.applyResult) {
+                        throw new Error("At least one score or apply flag must be provided.");
+                    }
+                    await requestJSON("/api/admin/fixtures/" + fixtureID, "PUT", payload);
+                    await loadAdminTables();
+                    setStatus("Fixture score applied.", false);
+                } catch (error) {
+                    setScoreUpdateEnabled(false);
+                    setStatRecordingEnabled(false);
+                    showFixtureWarning("Warning: fixture record does not exist.");
+                    setStatus("Apply fixture score failed: " + error.message, true);
+                }
+            });
+
             document.getElementById("delete-stat").addEventListener("click", async () => {
                 try {
                     const statID = toNumber(document.getElementById("stat-id").value);
@@ -807,6 +1152,11 @@
                 } catch (error) {
                     setStatus("Delete result failed: " + error.message, true);
                 }
+            });
+
+            document.getElementById("adminLogout").addEventListener("click", (event) => {
+                event.preventDefault();
+                logoutAdmin();
             });
 
             loadAdminTables().then(() => {

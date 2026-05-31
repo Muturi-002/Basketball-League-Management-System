@@ -16,9 +16,11 @@ type Fixture struct {
 	AwayTeamID      int64     `json:"awayTeamId"`
 	AwayTeamLogo    string    `json:"awayTeamLogo"`
 	FixtureLocation string    `json:"fixtureLocation"`
+	FixtureStatus   string    `json:"fixtureStatus"`
+	HomeScore       *int64    `json:"homeScore,omitempty"`
+	AwayScore       *int64    `json:"awayScore,omitempty"`
 }
 
-// TODO: Implement data access operations for fixtures.
 func ListFixtures() ([]Fixture, error) {
 	conn, err := EnsureConnected()
 	if err != nil {
@@ -26,17 +28,20 @@ func ListFixtures() ([]Fixture, error) {
 	}
 
 	rows, err := conn.Query(`
-        SELECT
-            fixture_id,
-            fixture_date,
-            fixture_time,
-            home_team_id,
-            home_team_logo,
-            away_team_id,
-            away_team_logo,
-            fixture_location
-        FROM fixtures
-        ORDER BY fixture_date, fixture_time`)
+		SELECT
+			fixture_id,
+			fixture_date,
+			fixture_time,
+			home_team_id,
+			home_team_logo,
+			away_team_id,
+			away_team_logo,
+			fixture_location,
+			fixture_status,
+			home_score,
+			away_score
+		FROM fixtures
+		ORDER BY fixture_date, fixture_time`)
 	if err != nil {
 		return nil, fmt.Errorf("query fixtures: %w", err)
 	}
@@ -45,6 +50,11 @@ func ListFixtures() ([]Fixture, error) {
 	fixtures := make([]Fixture, 0)
 	for rows.Next() {
 		var fixture Fixture
+		var (
+			fixtureStatus sql.NullString
+			homeScore     sql.NullInt64
+			awayScore     sql.NullInt64
+		)
 		if err := rows.Scan(
 			&fixture.FixtureID,
 			&fixture.FixtureDate,
@@ -54,9 +64,15 @@ func ListFixtures() ([]Fixture, error) {
 			&fixture.AwayTeamID,
 			&fixture.AwayTeamLogo,
 			&fixture.FixtureLocation,
+			&fixtureStatus,
+			&homeScore,
+			&awayScore,
 		); err != nil {
 			return nil, fmt.Errorf("scan fixture row: %w", err)
 		}
+		fixture.FixtureStatus = fixtureStatus.String
+		fixture.HomeScore = nullInt64Ptr(homeScore)
+		fixture.AwayScore = nullInt64Ptr(awayScore)
 		fixtures = append(fixtures, fixture)
 	}
 
@@ -74,18 +90,26 @@ func GetFixtureByID(fixtureID int64) (*Fixture, error) {
 	}
 
 	var fixture Fixture
+	var (
+		fixtureStatus sql.NullString
+		homeScore     sql.NullInt64
+		awayScore     sql.NullInt64
+	)
 	err = conn.QueryRow(`
-        SELECT
-            fixture_id,
-            fixture_date,
-            fixture_time,
-            home_team_id,
-            home_team_logo,
-            away_team_id,
-            away_team_logo,
-            fixture_location
-        FROM fixtures
-        WHERE fixture_id = :1`, fixtureID).Scan(
+		SELECT
+			fixture_id,
+			fixture_date,
+			fixture_time,
+			home_team_id,
+			home_team_logo,
+			away_team_id,
+			away_team_logo,
+			fixture_location,
+			fixture_status,
+			home_score,
+			away_score
+		FROM fixtures
+		WHERE fixture_id = :1`, fixtureID).Scan(
 		&fixture.FixtureID,
 		&fixture.FixtureDate,
 		&fixture.FixtureTime,
@@ -94,6 +118,9 @@ func GetFixtureByID(fixtureID int64) (*Fixture, error) {
 		&fixture.AwayTeamID,
 		&fixture.AwayTeamLogo,
 		&fixture.FixtureLocation,
+		&fixtureStatus,
+		&homeScore,
+		&awayScore,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -101,6 +128,10 @@ func GetFixtureByID(fixtureID int64) (*Fixture, error) {
 		}
 		return nil, fmt.Errorf("query fixture by id: %w", err)
 	}
+
+	fixture.FixtureStatus = fixtureStatus.String
+	fixture.HomeScore = nullInt64Ptr(homeScore)
+	fixture.AwayScore = nullInt64Ptr(awayScore)
 
 	return &fixture, nil
 }

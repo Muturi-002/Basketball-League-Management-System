@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>BLMS - Admin Login</title>
+        <link rel="stylesheet" href="styles.css">
+    </head>
+    <body>
+        <header>
+            <div class="header-bar">
+                <div class="site-title">Basketball League Management System - Admin</div>
+                <a class="login-button" href="home.html" id="backToSite">Back to site</a>
+            </div>
+        </header>
+
+        <main class="main-container">
+            <h1>Admin Login</h1>
+            <p>Sign in to manage league data and system updates.</p>
+
+            <section class="card-section">
+                <h2>Administrator Access</h2>
+                <form id="adminLoginForm" class="data-form">
+                    <label>
+                        Username
+                        <input id="adminUsername" name="username" type="text" autocomplete="username" required>
+                    </label>
+                    <label>
+                        Password
+                        <input id="adminPassword" name="password" type="password" autocomplete="current-password" required>
+                    </label>
+                    <div class="button-group">
+                        <button type="submit" id="adminLoginButton">Sign in</button>
+                    </div>
+                </form>
+                <div class="status-message" id="adminLoginMessage" aria-live="polite"></div>
+            </section>
+        </main>
+
+        <script>
+            const API_BASE = window.location.port === "4900" ? "" : "http://localhost:4900";
+
+            function apiUrl(path) {
+                return API_BASE + path;
+            }
+
+            function setMessage(node, message, kind) {
+                node.textContent = message || "";
+                node.className = "status-message" + (kind ? " status-" + kind : "");
+            }
+
+            function setBusy(button, busy, label) {
+                button.disabled = busy;
+                button.textContent = busy ? "Please wait..." : label;
+            }
+
+            function setBackLink() {
+                const backLink = document.getElementById("backToSite");
+                const fallback = "home.html";
+                if (document.referrer) {
+                    backLink.href = document.referrer;
+                } else {
+                    backLink.href = fallback;
+                }
+                backLink.addEventListener("click", (event) => {
+                    if (document.referrer) {
+                        event.preventDefault();
+                        window.history.back();
+                    }
+                });
+            }
+
+            document.getElementById("adminLoginForm").addEventListener("submit", async (event) => {
+                event.preventDefault();
+                const message = document.getElementById("adminLoginMessage");
+                const button = document.getElementById("adminLoginButton");
+
+                setMessage(message, "", "");
+                setBusy(button, true, "Sign in");
+
+                const payload = {
+                    username: document.getElementById("adminUsername").value.trim(),
+                    password: document.getElementById("adminPassword").value
+                };
+
+                try {
+                    const response = await fetch(apiUrl("/api/admin/login"), {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload)
+                    });
+                    const data = await response.json();
+                    if (!response.ok) {
+                        throw new Error(data.error || "Admin login failed");
+                    }
+                    window.location.href = "admin.html";
+                } catch (error) {
+                    setMessage(message, error.message, "error");
+                } finally {
+                    setBusy(button, false, "Sign in");
+                }
+            });
+
+            setBackLink();
+        </script>
+    </body>
+</html>

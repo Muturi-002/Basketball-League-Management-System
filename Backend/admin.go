@@ -18,7 +18,7 @@ func nullableStringFromPtr(value *string) interface{} {
 	}
 	return trimmed
 }
-// Handlers
+
 func adminPlayersHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
@@ -47,7 +47,27 @@ func adminPlayerByIDHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch r.Method {
+	case http.MethodGet:
+		player, err := db.GetPlayerByID(playerID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to load player")
+			return
+		}
+		if player == nil {
+			writeError(w, http.StatusNotFound, "player not found")
+			return
+		}
+		writeJSON(w, http.StatusOK, player)
 	case http.MethodPut:
+		existing, err := db.GetPlayerByID(playerID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to load player")
+			return
+		}
+		if existing == nil {
+			writeError(w, http.StatusNotFound, "player not found")
+			return
+		}
 		var player db.Player
 		if err := decodeJSON(r, &player); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid player payload")
@@ -98,7 +118,27 @@ func adminTeamByIDHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch r.Method {
+	case http.MethodGet:
+		club, err := db.GetClubByID(clubID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to load team")
+			return
+		}
+		if club == nil {
+			writeError(w, http.StatusNotFound, "team not found")
+			return
+		}
+		writeJSON(w, http.StatusOK, club)
 	case http.MethodPut:
+		existing, err := db.GetClubByID(clubID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to load team")
+			return
+		}
+		if existing == nil {
+			writeError(w, http.StatusNotFound, "team not found")
+			return
+		}
 		var club db.Club
 		if err := decodeJSON(r, &club); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid team payload")
@@ -200,7 +240,27 @@ func adminManagerByIDHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch r.Method {
+	case http.MethodGet:
+		manager, err := db.GetManagerByID(managerID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to load manager")
+			return
+		}
+		if manager == nil {
+			writeError(w, http.StatusNotFound, "manager not found")
+			return
+		}
+		writeJSON(w, http.StatusOK, manager)
 	case http.MethodPut:
+		existing, err := db.GetManagerByID(managerID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to load manager")
+			return
+		}
+		if existing == nil {
+			writeError(w, http.StatusNotFound, "manager not found")
+			return
+		}
 		var manager db.Manager
 		if err := decodeJSON(r, &manager); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid manager payload")
@@ -294,6 +354,116 @@ func adminFixturesHandler(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, map[string]string{"status": "fixture created"})
 }
 
+func createStat(stat db.Stat) error {
+	conn, err := db.EnsureConnected()
+	if err != nil {
+		return fmt.Errorf("stat create: %w", err)
+	}
+
+	if stat.StatID > 0 {
+		_, err = conn.Exec(`
+			INSERT INTO team_statistics (
+				team_stat_id, team_id, games_played, wins, losses, league_points,
+				points_scored
+			) VALUES (:1, :2, :3, :4, :5, :6, :7)`,
+			stat.StatID, stat.TeamID, stat.GamesPlayed, stat.Wins, stat.Losses,
+			stat.Points, stat.PointsScored,
+		)
+	} else {
+		_, err = conn.Exec(`
+			INSERT INTO team_statistics (
+				team_id, games_played, wins, losses, league_points,
+				points_scored
+			) VALUES (:1, :2, :3, :4, :5, :6)`,
+			stat.TeamID, stat.GamesPlayed, stat.Wins, stat.Losses,
+			stat.Points, stat.PointsScored,
+		)
+	}
+	if err != nil {
+		return fmt.Errorf("insert stat: %w", err)
+	}
+	return nil
+}
+
+func updateStat(stat db.Stat) error {
+	conn, err := db.EnsureConnected()
+	if err != nil {
+		return fmt.Errorf("stat update: %w", err)
+	}
+	if stat.StatID <= 0 {
+		return fmt.Errorf("stat update: invalid statId")
+	}
+	_, err = conn.Exec(`
+		UPDATE team_statistics
+		SET
+			team_id = :1,
+			games_played = :2,
+			wins = :3,
+			losses = :4,
+			league_points = :5,
+			points_scored = :6
+		WHERE team_stat_id = :7`,
+		stat.TeamID, stat.GamesPlayed, stat.Wins, stat.Losses,
+		stat.Points, stat.PointsScored, stat.StatID,
+	)
+	if err != nil {
+		return fmt.Errorf("update stat: %w", err)
+	}
+	return nil
+}
+
+func deleteStat(statID int64) error {
+	conn, err := db.EnsureConnected()
+	if err != nil {
+		return fmt.Errorf("stat delete: %w", err)
+	}
+	_, err = conn.Exec(`DELETE FROM team_statistics WHERE team_stat_id = :1`, statID)
+	if err != nil {
+		return fmt.Errorf("delete stat: %w", err)
+	}
+	return nil
+}
+
+func createFixture(fixture db.Fixture) error {
+	conn, err := db.EnsureConnected()
+	if err != nil {
+		return fmt.Errorf("fixture create: %w", err)
+	}
+
+	var homeScore interface{}
+	var awayScore interface{}
+	if fixture.HomeScore != nil {
+		homeScore = *fixture.HomeScore
+	}
+	if fixture.AwayScore != nil {
+		awayScore = *fixture.AwayScore
+	}
+
+	if fixture.FixtureID > 0 {
+		_, err = conn.Exec(`
+			INSERT INTO fixtures (
+				fixture_id, fixture_date, fixture_time, home_team_id, home_team_logo,
+				away_team_id, away_team_logo, fixture_location, fixture_status, home_score, away_score
+			) VALUES (:1, :2, :3, :4, :5, :6, :7, :8, :9, :10, :11)`,
+			fixture.FixtureID, fixture.FixtureDate, fixture.FixtureTime, fixture.HomeTeamID, fixture.HomeTeamLogo,
+			fixture.AwayTeamID, fixture.AwayTeamLogo, fixture.FixtureLocation, fixture.FixtureStatus, homeScore, awayScore,
+		)
+	} else {
+		_, err = conn.Exec(`
+			INSERT INTO fixtures (
+				fixture_date, fixture_time, home_team_id, home_team_logo,
+				away_team_id, away_team_logo, fixture_location, fixture_status, home_score, away_score
+			) VALUES (:1, :2, :3, :4, :5, :6, :7, :8, :9, :10)`,
+			fixture.FixtureDate, fixture.FixtureTime, fixture.HomeTeamID, fixture.HomeTeamLogo,
+			fixture.AwayTeamID, fixture.AwayTeamLogo, fixture.FixtureLocation, fixture.FixtureStatus, homeScore, awayScore,
+		)
+	}
+	if err != nil {
+		return fmt.Errorf("insert fixture: %w", err)
+	}
+	return nil
+}
+
 func adminFixtureByIDHandler(w http.ResponseWriter, r *http.Request) {
 	fixtureID, ok := parseIDFromPath(r.URL.Path, "/api/admin/fixtures/")
 	if !ok {
@@ -302,13 +472,42 @@ func adminFixtureByIDHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch r.Method {
+	case http.MethodGet:
+		fixture, err := db.GetFixtureByID(fixtureID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to load fixture")
+			return
+		}
+		if fixture == nil {
+			writeError(w, http.StatusNotFound, "fixture not found")
+			return
+		}
+		writeJSON(w, http.StatusOK, fixture)
 	case http.MethodPut:
+		existing, err := db.GetFixtureByID(fixtureID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to load fixture")
+			return
+		}
+		if existing == nil {
+			writeError(w, http.StatusNotFound, "fixture not found")
+			return
+		}
 		var fixture db.Fixture
 		if err := decodeJSON(r, &fixture); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid fixture payload")
 			return
 		}
 		fixture.FixtureID = fixtureID
+		if fixture.HomeTeamLogo == "" {
+			fixture.HomeTeamLogo = existing.HomeTeamLogo
+		}
+		if fixture.AwayTeamLogo == "" {
+			fixture.AwayTeamLogo = existing.AwayTeamLogo
+		}
+		if fixture.FixtureLocation == "" {
+			fixture.FixtureLocation = existing.FixtureLocation
+		}
 		if err := updateFixture(fixture); err != nil {
 			writeError(w, http.StatusInternalServerError, "failed to update fixture")
 			return
@@ -325,7 +524,6 @@ func adminFixtureByIDHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Players management
 func createPlayer(player db.Player) error {
 	conn, err := db.EnsureConnected()
 	if err != nil {
@@ -432,7 +630,6 @@ func deletePlayer(playerID int64) error {
 	return nil
 }
 
-// Clubs management
 func createClub(club db.Club) error {
 	conn, err := db.EnsureConnected()
 	if err != nil {
@@ -590,7 +787,6 @@ func deleteStadium(stadiumID int64) error {
 	return nil
 }
 
-// Managers management
 func createManager(manager db.Manager) error {
 	conn, err := db.EnsureConnected()
 	if err != nil {
@@ -663,112 +859,6 @@ func deleteManager(managerID int64) error {
 	_, err = conn.Exec(`DELETE FROM team_managers WHERE manager_id = :1`, managerID)
 	if err != nil {
 		return fmt.Errorf("delete manager: %w", err)
-	}
-	return nil
-}
-
-//Stats management
-func createStat(stat db.Stat) error {
-	conn, err := db.EnsureConnected()
-	if err != nil {
-		return fmt.Errorf("stat create: %w", err)
-	}
-
-	if stat.StatID > 0 {
-		_, err = conn.Exec(`
-			INSERT INTO stats (
-				stat_id, team_id, games_played, wins,
-				losses, points, points_scored, points_allowed
-			) VALUES (:1, :2, :3, :4, :5, :6, :7, :8)`,
-			stat.StatID, stat.TeamID, stat.GamesPlayed, stat.Wins,
-			stat.Losses, stat.Points, stat.PointsScored, stat.PointsAllowed,
-		)
-	} else {
-		_, err = conn.Exec(`
-			INSERT INTO stats (
-				team_id, games_played, wins, losses, points,
-				points_scored, points_allowed
-			) VALUES (:1, :2, :3, :4, :5, :6, :7)`,
-			stat.TeamID, stat.GamesPlayed, stat.Wins, stat.Losses,
-			stat.Points, stat.PointsScored, stat.PointsAllowed,
-		)
-	}
-	if err != nil {
-		return fmt.Errorf("insert stat: %w", err)
-	}
-	return nil
-}
-
-func updateStat(stat db.Stat) error {
-	conn, err := db.EnsureConnected()
-	if err != nil {
-		return fmt.Errorf("stat update: %w", err)
-	}
-	if stat.StatID <= 0 {
-		return fmt.Errorf("stat update: invalid statId")
-	}
-
-	_, err = conn.Exec(`
-		UPDATE stats
-		SET
-			team_id = :1,
-			games_played = :2,
-			wins = :3,
-			losses = :4,
-			points = :5,
-			points_scored = :6,
-			points_allowed = :7
-		WHERE stat_id = :8`,
-		stat.TeamID, stat.GamesPlayed, stat.Wins, stat.Losses, stat.Points,
-		stat.PointsScored, stat.PointsAllowed, stat.StatID,
-	)
-	if err != nil {
-		return fmt.Errorf("update stat: %w", err)
-	}
-	return nil
-}
-
-func deleteStat(statID int64) error {
-	conn, err := db.EnsureConnected()
-	if err != nil {
-		return fmt.Errorf("stat delete: %w", err)
-	}
-	_, err = conn.Exec(`DELETE FROM stats WHERE stat_id = :1`, statID)
-	if err != nil {
-		return fmt.Errorf("delete stat: %w", err)
-	}
-	return nil
-}
-
-//Fixture management
-func createFixture(fixture db.Fixture) error {
-	conn, err := db.EnsureConnected()
-	if err != nil {
-		return fmt.Errorf("fixture create: %w", err)
-	}
-
-	if fixture.FixtureID > 0 {
-		_, err = conn.Exec(`
-            INSERT INTO fixtures (
-                fixture_id, fixture_date, fixture_time, home_team_id, home_team_logo,
-                away_team_id, away_team_logo, fixture_location
-            ) VALUES (:1, :2, :3, :4, :5, :6, :7, :8)`,
-			fixture.FixtureID, fixture.FixtureDate, fixture.FixtureTime, fixture.HomeTeamID,
-			fixture.HomeTeamLogo, fixture.AwayTeamID, fixture.AwayTeamLogo,
-			fixture.FixtureLocation,
-		)
-	} else {
-		_, err = conn.Exec(`
-            INSERT INTO fixtures (
-                fixture_date, fixture_time, home_team_id, home_team_logo,
-                away_team_id, away_team_logo, fixture_location
-            ) VALUES (:1, :2, :3, :4, :5, :6, :7)`,
-			fixture.FixtureDate, fixture.FixtureTime, fixture.HomeTeamID, fixture.HomeTeamLogo,
-			fixture.AwayTeamID, fixture.AwayTeamLogo, fixture.FixtureLocation,
-		)
-	}
-	if err != nil {
-		return fmt.Errorf("insert fixture: %w", err)
 	}
 	return nil
 }
