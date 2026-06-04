@@ -32,46 +32,41 @@
                     for your favourite league. For the fans, by the fans.
                 </p>
 
-                <section class="card-section">
-                    <h2>Top 5 Teams</h2>
-                    <div class="table-wrapper">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Rank</th>
-                                    <th>Team</th>
-                                    <th>Games</th>
-                                    <th>Wins</th>
-                                    <th>Losses</th>
-                                    <th>Points</th>
-                                    <th>Net Rating</th>
-                                </tr>
-                            </thead>
-                            <tbody id="top-teams-body"></tbody>
-                        </table>
-                    </div>
-                </section>
+                <div class="home-table-grid">
+                    <section class="card-section">
+                        <h2>Top 5 Teams</h2>
+                        <div class="table-wrapper compact-table-wrapper">
+                            <table class="data-table compact-table">
+                                <thead>
+                                    <tr>
+                                        <th>Rank</th>
+                                        <th>Team</th>
+                                        <th>Wins</th>
+                                        <th>Points</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="top-teams-body"></tbody>
+                            </table>
+                        </div>
+                    </section>
 
-                <section class="card-section">
-                    <h2>Top 5 Players</h2>
-                    <div class="table-wrapper">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Rank</th>
-                                    <th>Player</th>
-                                    <th>Team</th>
-                                    <th>PPG</th>
-                                    <th>APG</th>
-                                    <th>RPG</th>
-                                    <th>SPG</th>
-                                    <th>BPG</th>
-                                </tr>
-                            </thead>
-                            <tbody id="top-players-body"></tbody>
-                        </table>
-                    </div>
-                </section>
+                    <section class="card-section">
+                        <h2>Top 5 Players</h2>
+                        <div class="table-wrapper compact-table-wrapper">
+                            <table class="data-table compact-table">
+                                <thead>
+                                    <tr>
+                                        <th>Rank</th>
+                                        <th>Player</th>
+                                        <th>Team</th>
+                                        <th>PPG</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="top-players-body"></tbody>
+                            </table>
+                        </div>
+                    </section>
+                </div>
 
                 <section class="card-section">
                     <h2>Fixtures of the Day</h2>
@@ -81,11 +76,9 @@
                             <thead>
                                 <tr>
                                     <th>Time</th>
-                                    <th>Home Team</th>
-                                    <th>Away Team</th>
+                                    <th>Matchup</th>
                                     <th>Status</th>
                                     <th>Score</th>
-                                    <th>Location</th>
                                 </tr>
                             </thead>
                             <tbody id="today-fixtures-body"></tbody>
@@ -226,11 +219,8 @@
                     tr.innerHTML = `
                         <td>${index + 1}</td>
                         <td>${teamNameById.get(row.teamId) || row.teamId}</td>
-                        <td>${row.gamesPlayed ?? 0}</td>
                         <td>${row.wins ?? 0}</td>
-                        <td>${row.losses ?? 0}</td>
                         <td>${row.points ?? 0}</td>
-                        <td>${row.netRating ?? 0}</td>
                     `;
                     teamsBody.appendChild(tr);
                 });
@@ -244,10 +234,6 @@
                         <td>${fullName(player)}</td>
                         <td>${teamNameById.get(player.teamId) || player.teamId}</td>
                         <td>${metrics.PPG.toFixed(1)}</td>
-                        <td>${metrics.APG.toFixed(1)}</td>
-                        <td>${metrics.RPG.toFixed(1)}</td>
-                        <td>${metrics.SPG.toFixed(1)}</td>
-                        <td>${metrics.BPG.toFixed(1)}</td>
                     `;
                     playersBody.appendChild(tr);
                 });
@@ -258,11 +244,9 @@
                     const tr = document.createElement("tr");
                     tr.innerHTML = `
                         <td>${new Date(fixture.fixtureTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</td>
-                        <td>${teamNameById.get(fixture.homeTeamId) || fixture.homeTeamId}</td>
-                        <td>${teamNameById.get(fixture.awayTeamId) || fixture.awayTeamId}</td>
+                        <td>${teamNameById.get(fixture.homeTeamId) || fixture.homeTeamId} vs ${teamNameById.get(fixture.awayTeamId) || fixture.awayTeamId}</td>
                         <td>${fixture.fixtureStatus || "N/A"}</td>
                         <td>${scoreCell(fixture)}</td>
-                        <td>${fixture.fixtureLocation || "N/A"}</td>
                     `;
                     fixturesBody.appendChild(tr);
                 });

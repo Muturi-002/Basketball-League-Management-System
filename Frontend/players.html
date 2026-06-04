@@ -35,7 +35,6 @@
                     <table class="data-table" id="players-table">
                         <thead>
                         <tr>
-                            <th>Player ID</th>
                             <th>Photo</th>
                             <th>Name</th>
                             <th>#</th>
@@ -100,7 +99,6 @@
                         const teamName = teamNameById.get(player.teamId) || "Unknown Team";
 
                         row.innerHTML = `
-                            <td>${player.playerId}</td>
                             <td>${imgTag(player.playerPhoto, "Player Photo", "thumb-img")}</td>
                             <td>${fullName}</td>
                             <td>${player.jerseyNumber}</td>

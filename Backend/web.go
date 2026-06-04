@@ -57,11 +57,13 @@ func main() {
 	adminMux.Handle("/api/admin/fixtures", requireAdmin(http.HandlerFunc(adminFixturesHandler)))
 	adminMux.Handle("/api/admin/fixtures/", requireAdmin(http.HandlerFunc(adminFixtureByIDHandler)))
 	adminMux.HandleFunc("/admin-login.html", adminLoginPageHandler)
-	adminMux.HandleFunc("/", adminPageHandler)
 	adminMux.HandleFunc("/styles.css", frontendHandler)
 	adminMux.HandleFunc("/auth.html", frontendHandler)
+	adminMux.HandleFunc("/team.html", frontendHandler)
+	adminMux.HandleFunc("/", adminPageHandler)
 
 	// Frontend pages and assets.
+	publicMux.HandleFunc("/team.html", frontendHandler)
 	publicMux.HandleFunc("/", frontendHandler)
 
 	publicAddr := ":4000"
@@ -176,6 +178,7 @@ func frontendHandler(w http.ResponseWriter, r *http.Request) {
 	frontendFiles := map[string]bool{
 		"home.html":        true,
 		"teams.html":       true,
+		"team.html":        true,
 		"players.html":     true,
 		"injury.html":      true,
 		"stats.html":       true,

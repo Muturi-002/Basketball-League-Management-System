@@ -27,7 +27,7 @@
         <div class="main-container">
             <main>
                 <h1>League Teams</h1>
-                <p>Browse league teams with associated managers and club information.</p>
+                <p>Browse league teams with associated managers, club information, and roster links.</p>
 
                 <div id="teams-status" class="status-message">Loading teams...</div>
 
@@ -35,7 +35,6 @@
                     <table class="data-table" id="teams-table">
                         <thead>
                         <tr>
-                            <th>Team ID</th>
                             <th>Logo</th>
                             <th>Team Name</th>
                             <th>Manager</th>
@@ -107,9 +106,8 @@
 
                         const row = document.createElement("tr");
                         row.innerHTML = `
-                            <td>${team.clubId}</td>
                             <td>${imgTag(team.teamLogo, "Team Logo", "thumb-img")}</td>
-                            <td>${team.teamName}</td>
+                            <td><a class="team-link" href="team.html?id=${team.clubId}">${team.teamName}</a></td>
                             <td>${managerCell}</td>
                             <td>${imgTag(team.clubManagerPhoto, "Manager Photo", "thumb-img")}</td>
                             <td>${team.clubHistory || "N/A"}</td>
