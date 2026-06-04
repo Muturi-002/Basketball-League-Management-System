@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 
@@ -58,12 +59,10 @@ func main() {
 	adminMux.Handle("/api/admin/fixtures/", requireAdmin(http.HandlerFunc(adminFixtureByIDHandler)))
 	adminMux.HandleFunc("/admin-login.html", adminLoginPageHandler)
 	adminMux.HandleFunc("/styles.css", frontendHandler)
-	adminMux.HandleFunc("/auth.html", frontendHandler)
-	adminMux.HandleFunc("/team.html", frontendHandler)
+	adminMux.HandleFunc("/KBF.png", frontendHandler)
 	adminMux.HandleFunc("/", adminPageHandler)
 
 	// Frontend pages and assets.
-	publicMux.HandleFunc("/team.html", frontendHandler)
 	publicMux.HandleFunc("/", frontendHandler)
 
 	publicAddr := ":4000"
@@ -169,37 +168,29 @@ func writeByID[T any](w http.ResponseWriter, r *http.Request, prefix, invalidIDM
 	writeJSON(w, http.StatusOK, item)
 }
 
+type noListFileSystem struct{ http.FileSystem }
+
+func (nofs noListFileSystem) Open(name string) (http.File, error) {
+	f, err := nofs.FileSystem.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	stat, err := f.Stat()
+	if err != nil {
+		return nil, err
+	}
+	if stat.IsDir() {
+		return nil, os.ErrNotExist
+	}
+	return f, nil
+}
+
 func frontendHandler(w http.ResponseWriter, r *http.Request) {
 	if strings.HasPrefix(r.URL.Path, "/api/") || strings.HasPrefix(r.URL.Path, "/internal/") {
 		http.NotFound(w, r)
 		return
 	}
-
-	frontendFiles := map[string]bool{
-		"home.html":        true,
-		"teams.html":       true,
-		"team.html":        true,
-		"players.html":     true,
-		"injury.html":      true,
-		"stats.html":       true,
-		"fixtures.html":    true,
-		"auth.html":        true,
-		"admin-login.html": true,
-		"manager.html":     true,
-		"styles.css":       true,
-	}
-
-	page := "home.html"
-	if r.URL.Path != "/" {
-		candidate := strings.TrimPrefix(r.URL.Path, "/")
-		if !frontendFiles[candidate] {
-			http.NotFound(w, r)
-			return
-		}
-		page = candidate
-	}
-
-	http.ServeFile(w, r, "../Frontend/"+page)
+	http.FileServer(noListFileSystem{http.Dir("../Frontend/")}).ServeHTTP(w, r)
 }
 
 func adminPageHandler(w http.ResponseWriter, r *http.Request) {

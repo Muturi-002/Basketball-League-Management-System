@@ -10,7 +10,6 @@
         <header>
             <div class="header-bar">
                 <div class="site-title">Basketball League Management System - Admin</div>
-                <a class="login-button" href="home.html" id="backToSite">Back to site</a>
             </div>
         </header>
 
@@ -54,22 +53,6 @@
                 button.textContent = busy ? "Please wait..." : label;
             }
 
-            function setBackLink() {
-                const backLink = document.getElementById("backToSite");
-                const fallback = "home.html";
-                if (document.referrer) {
-                    backLink.href = document.referrer;
-                } else {
-                    backLink.href = fallback;
-                }
-                backLink.addEventListener("click", (event) => {
-                    if (document.referrer) {
-                        event.preventDefault();
-                        window.history.back();
-                    }
-                });
-            }
-
             document.getElementById("adminLoginForm").addEventListener("submit", async (event) => {
                 event.preventDefault();
                 const message = document.getElementById("adminLoginMessage");
@@ -100,8 +83,6 @@
                     setBusy(button, false, "Sign in");
                 }
             });
-
-            setBackLink();
         </script>
     </body>
 </html>
