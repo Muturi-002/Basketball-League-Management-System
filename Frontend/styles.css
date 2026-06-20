@@ -104,6 +104,51 @@ nav a:hover {
     transition: background var(--t);
 }
 
+/* User area: shows username and hover logout */
+.user-area {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    position: relative;
+}
+.user-area .username {
+    color: var(--accent);
+    font-weight: 700;
+}
+.user-menu {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 32px;
+    min-width: 150px;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: rgba(22, 27, 31, 0.98);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.3);
+    z-index: 5;
+}
+.user-area:hover .user-menu { display: flex; }
+.user-menu-link,
+.user-menu button {
+    width: 100%;
+    text-align: left;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text);
+    padding: 8px 10px;
+    cursor: pointer;
+    font: inherit;
+}
+.user-menu-link:hover,
+.user-menu button:hover {
+    background: var(--accent-dim);
+    text-decoration: none;
+}
+
 .login-button:hover { background: var(--accent-dim); }
 
 /* ----- Layout ----- */

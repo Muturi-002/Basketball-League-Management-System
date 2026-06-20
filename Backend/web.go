@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	db "blms/Database"
 )
@@ -38,6 +39,8 @@ func main() {
 	publicMux.HandleFunc("/api/fixtures", fixturesHandler)
 	publicMux.HandleFunc("/api/fixtures/", fixtureByIDHandler)
 	publicMux.HandleFunc("/api/auth/login", loginHandler)
+	publicMux.HandleFunc("/api/auth/logout", memberLogoutHandler)
+	publicMux.HandleFunc("/api/auth/me", memberMeHandler)
 	publicMux.HandleFunc("/api/auth/register", registerHandler)
 	publicMux.HandleFunc("/api/auth/users", usersHandler)
 	publicMux.HandleFunc("/api/auth/users/", userByIDHandler)
@@ -70,30 +73,15 @@ func main() {
 
 	go func() {
 		log.Printf("Starting admin server on %s...", adminAddr)
-		if err := http.ListenAndServe(adminAddr, withCORS(adminMux)); err != nil {
+		if err := http.ListenAndServe(adminAddr, adminMux); err != nil {
 			log.Fatal(err)
 		}
 	}()
 
 	log.Printf("Starting public server on %s...", publicAddr)
-	if err := http.ListenAndServe(publicAddr, withCORS(publicMux)); err != nil {
+	if err := http.ListenAndServe(publicAddr, publicMux); err != nil {
 		log.Fatal(err)
 	}
-}
-
-func withCORS(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
 }
 
 func writeJSON(w http.ResponseWriter, status int, value interface{}) {
@@ -341,9 +329,28 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// create a session token for the member
+	token, err := generateAdminToken()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to create session")
+		return
+	}
+	expiresAt := time.Now().Add(memberSessionTTL)
+	storeMemberToken(token, user.UserID, expiresAt)
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     memberSessionCookieName,
+		Value:    token,
+		Path:     "/",
+		Expires:  expiresAt,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	})
+
 	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"message": "Login successful",
-		"member":  authMemberPayload(user),
+		"message":          "Login successful",
+		"member":           authMemberPayload(user),
+		"sessionExpiresAt": expiresAt.Format(time.RFC3339),
 	})
 }
 

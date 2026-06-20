@@ -129,6 +129,13 @@
 
             const memberStorageKey = 'blms-member-account';
 
+            async function apiRequest(path, options = {}) {
+                return fetch(path, {
+                    credentials: 'same-origin',
+                    ...options
+                });
+            }
+
             function setMessage(node, message, kind) {
                 node.textContent = message || '';
                 node.className = 'status-message' + (kind ? ' status-' + kind : '');
@@ -157,6 +164,18 @@
                 sessionStorage.setItem(memberStorageKey, JSON.stringify(member));
             }
 
+            async function fetchActiveMember() {
+                try {
+                    const response = await apiRequest('/api/auth/me');
+                    if (!response.ok) {
+                        return null;
+                    }
+                    return await response.json();
+                } catch (error) {
+                    return null;
+                }
+            }
+
             function hydrateFromStorage() {
                 const saved = sessionStorage.getItem(memberStorageKey);
                 if (!saved) {
@@ -173,7 +192,7 @@
 
             async function loadTeams() {
                 try {
-                    const response = await fetch('/api/teams');
+                    const response = await apiRequest('/api/teams');
                     const data = await response.json();
 
                     favTeamSelect.innerHTML = '<option value="">Choose a favorite club</option>';
@@ -201,7 +220,7 @@
                 };
 
                 try {
-                    const response = await fetch('/api/auth/login', {
+                    const response = await apiRequest('/api/auth/login', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(payload)
@@ -237,7 +256,7 @@
                 };
 
                 try {
-                    const response = await fetch('/api/auth/register', {
+                    const response = await apiRequest('/api/auth/register', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(payload)
@@ -261,11 +280,14 @@
             });
 
             logoutButton.addEventListener('click', () => {
-                sessionStorage.removeItem(memberStorageKey);
-                memberCard.hidden = true;
-                setMessage(loginMessage, 'Signed out.', 'success');
-                setMessage(pageMessage, 'You are signed out. Sign in again or create a new account.', 'success');
-                window.location.href = 'home.html';
+                apiRequest('/api/auth/logout', { method: 'POST' })
+                    .finally(() => {
+                        sessionStorage.removeItem(memberStorageKey);
+                        memberCard.hidden = true;
+                        setMessage(loginMessage, 'Signed out.', 'success');
+                        setMessage(pageMessage, 'You are signed out. Sign in again or create a new account.', 'success');
+                        window.location.href = 'home.html';
+                    });
             });
 
             document.getElementById('backButton').addEventListener('click', () => {
@@ -278,6 +300,12 @@
 
             hydrateFromStorage();
             loadTeams();
+            fetchActiveMember().then((member) => {
+                if (member) {
+                    showMember(member);
+                    setMessage(pageMessage, 'Your active session is loaded from the server.', 'success');
+                }
+            });
         </script>
     </body>
 </html>
