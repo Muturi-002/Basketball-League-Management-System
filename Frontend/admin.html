@@ -6,7 +6,6 @@
         <title>BLMS - Admin Console</title>
         <link rel="stylesheet" href="styles.css">
         <style>
-            /* ── Stats section two-panel layout ── */
             .stats-panels {
                 display: grid;
                 grid-template-columns: 1fr 1fr;
@@ -28,7 +27,6 @@
                 color: var(--text-label);
                 margin-bottom: 12px;
             }
-            /* Checkboxes sit inline rather than stacking */
             .checkbox-row {
                 display: flex;
                 align-items: center;
@@ -44,10 +42,82 @@
                 width: 14px;
                 height: 14px;
                 flex-shrink: 0;
-                accent-color: var(--green);
+                accent-color: var(--accent);
             }
+            .admin-shell {
+                display: grid;
+                grid-template-columns: 220px minmax(0, 1fr);
+                gap: 18px;
+                align-items: start;
+            }
+            .admin-tabs {
+                position: sticky;
+                top: calc(var(--header-h) + 18px);
+                display: grid;
+                gap: 8px;
+                padding: 12px;
+                border: 1px solid var(--border);
+                border-radius: var(--radius-lg);
+                background: rgba(22, 27, 31, 0.96);
+            }
+            .admin-tab {
+                border: 1px solid transparent;
+                border-radius: var(--radius);
+                background: transparent;
+                color: var(--text-muted);
+                cursor: pointer;
+                font-family: var(--font-display);
+                font-size: 0.76rem;
+                font-weight: 800;
+                letter-spacing: 0.06em;
+                padding: 10px 11px;
+                text-align: left;
+                text-transform: uppercase;
+                transition: background var(--t), border-color var(--t), color var(--t);
+            }
+            .admin-tab:hover,
+            .admin-tab.active {
+                background: var(--accent-dim);
+                border-color: var(--accent);
+                color: var(--text);
+            }
+            .management-panel { display: none; }
+            .management-panel.active { display: block; }
+            .data-form select {
+                border: 1px solid var(--border);
+                border-radius: 4px;
+                padding: 8px;
+                background: var(--bg);
+                color: var(--text);
+            }
+            .quarter-grid {
+                display: grid;
+                grid-template-columns: repeat(4, minmax(90px, 1fr));
+                gap: 10px;
+                grid-column: 1 / -1;
+            }
+            .aggregate-score {
+                align-self: end;
+                border: 1px solid var(--border);
+                border-radius: var(--radius);
+                background: var(--bg);
+                color: var(--text);
+                font-family: var(--font-mono);
+                padding: 9px 12px;
+            }
+            .aggregate-score strong {
+                color: var(--accent);
+                font-family: var(--font-display);
+            }
+            .full-span { grid-column: 1 / -1; }
             @media (max-width: 768px) {
                 .stats-panels { grid-template-columns: 1fr; }
+                .admin-shell { grid-template-columns: 1fr; }
+                .admin-tabs {
+                    position: static;
+                    grid-template-columns: repeat(2, minmax(0, 1fr));
+                }
+                .quarter-grid { grid-template-columns: repeat(2, minmax(90px, 1fr)); }
             }
         </style>
     </head>
@@ -66,7 +136,19 @@
 
                 <div id="admin-status" class="status-message">Ready.</div>
 
-                <section class="card-section">
+                <div class="admin-shell">
+                    <nav class="admin-tabs" aria-label="Admin management modules">
+                        <button type="button" class="admin-tab active" data-tab-target="players-panel">Players</button>
+                        <button type="button" class="admin-tab" data-tab-target="teams-panel">Teams</button>
+                        <button type="button" class="admin-tab" data-tab-target="stadiums-panel">Stadiums</button>
+                        <button type="button" class="admin-tab" data-tab-target="managers-panel">Managers</button>
+                        <button type="button" class="admin-tab" data-tab-target="fixtures-panel">Fixtures</button>
+                        <button type="button" class="admin-tab" data-tab-target="injuries-panel">Injuries</button>
+                        <button type="button" class="admin-tab" data-tab-target="stats-panel">Stats</button>
+                    </nav>
+
+                    <div>
+                <section class="card-section management-panel active" id="players-panel">
                     <h2>Player Management</h2>
                     <form class="data-form">
                         <label>Player ID (required for update/delete)
@@ -119,7 +201,7 @@
                     </div>
                 </section>
 
-                <section class="card-section">
+                <section class="card-section management-panel" id="teams-panel">
                     <h2>Team Management</h2>
                     <form class="data-form">
                         <label>Team ID (required)
@@ -137,7 +219,6 @@
                         <label>Club Manager Photo
                             <textarea id="team-manager-photo" rows="3" ></textarea>
                         </label>
-                        <!-- Assistant manager fields removed to match DB schema -->
                         <label>Club Location ID
                             <input type="number" id="team-location-id" min="1" step="1" data-positive-id="true">
                         </label>
@@ -166,7 +247,7 @@
                     </div>
                 </section>
 
-                <section class="card-section">
+                <section class="card-section management-panel" id="stadiums-panel">
                     <h2>Stadium Management</h2>
                     <form class="data-form">
                         <label>Stadium ID (required)
@@ -202,7 +283,7 @@
                     </div>
                 </section>
 
-                <section class="card-section">
+                <section class="card-section management-panel" id="managers-panel">
                     <h2>Manager Management</h2>
                     <form class="data-form">
                         <label>Manager ID (required for update/delete)
@@ -251,7 +332,7 @@
                     </div>
                 </section>
 
-                <section class="card-section">
+                <section class="card-section management-panel" id="fixtures-panel">
                     <h2>Fixture Management</h2>
                     <form class="data-form">
                         <label>Fixture ID (required for update/delete)
@@ -289,6 +370,9 @@
                                 <th>Home Team</th>
                                 <th>Away Team</th>
                                 <th>Location</th>
+                                <th>Status</th>
+                                <th>Home Score</th>
+                                <th>Away Score</th>
                             </tr>
                             </thead>
                             <tbody id="fixture-admin-body"></tbody>
@@ -296,11 +380,111 @@
                     </div>
                 </section>
 
-                <section class="card-section">
+                <section class="card-section management-panel" id="injuries-panel">
+                    <h2>Injury Management</h2>
+                    <div class="stats-panels">
+                        <div class="stats-subpanel">
+                            <p class="subpanel-label">&#9654; Injury Catalog</p>
+                            <form class="data-form">
+                                <label>Injury ID
+                                    <input type="number" id="catalog-injury-id" min="1" step="1" data-positive-id="true">
+                                </label>
+                                <label>Injury Name
+                                    <input type="text" id="catalog-injury-name">
+                                </label>
+                                <label>Injury Type
+                                    <input type="text" id="catalog-injury-type">
+                                </label>
+                                <label>Resources
+                                    <input type="text" id="catalog-injury-resources">
+                                </label>
+                                <label>Video Description
+                                    <input type="text" id="catalog-injury-video-description">
+                                </label>
+                                <label class="full-span">Description
+                                    <textarea id="catalog-injury-description" rows="3"></textarea>
+                                </label>
+                                <div class="button-group full-span">
+                                    <button type="button" id="create-catalog-injury">Create Injury</button>
+                                    <button type="button" id="load-catalog-injury">Load Injury</button>
+                                    <button type="button" id="update-catalog-injury">Update Injury</button>
+                                    <button type="button" id="delete-catalog-injury">Delete Injury</button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <div class="stats-subpanel">
+                            <p class="subpanel-label">&#9654; Player Injury Record</p>
+                    <form class="data-form">
+                        <label>Injured Player Record ID
+                            <input type="number" id="injured-player-id" min="1" step="1" data-positive-id="true">
+                        </label>
+                        <label>Player ID
+                            <input type="number" id="injury-player-id" min="1" step="1" data-positive-id="true">
+                        </label>
+                        <label>Injury ID
+                            <input type="number" id="injury-id" min="1" step="1" data-positive-id="true">
+                        </label>
+                        <label>Injury Name
+                            <input type="text" id="injury-name">
+                        </label>
+                        <label>Start Date
+                            <input type="date" id="injury-start-date">
+                        </label>
+                        <label>Expected Return
+                            <input type="date" id="injury-expected-return">
+                        </label>
+                        <label>Status
+                            <select id="injury-status">
+                                <option value="CURRENT">Current</option>
+                                <option value="RECOVERED">Recovered</option>
+                            </select>
+                        </label>
+                        <div class="button-group">
+                            <button type="button" id="create-injury-record">Create Record</button>
+                            <button type="button" id="load-injury-record">Load Record</button>
+                            <button type="button" id="update-injury-record">Update Record</button>
+                            <button type="button" id="delete-injury-record">Delete Record</button>
+                        </div>
+                    </form>
+                        </div>
+                    </div>
+                    <div class="table-wrapper">
+                        <table class="data-table">
+                            <thead>
+                            <tr>
+                                <th>Injury ID</th>
+                                <th>Name</th>
+                                <th>Type</th>
+                                <th>Resources</th>
+                                <th>Video</th>
+                            </tr>
+                            </thead>
+                            <tbody id="catalog-injuries-admin-body"></tbody>
+                        </table>
+                    </div>
+                    <div class="table-wrapper">
+                        <table class="data-table">
+                            <thead>
+                            <tr>
+                                <th>Record ID</th>
+                                <th>Player ID</th>
+                                <th>Injury ID</th>
+                                <th>Name</th>
+                                <th>Start</th>
+                                <th>Expected Return</th>
+                                <th>Status</th>
+                            </tr>
+                            </thead>
+                            <tbody id="injuries-admin-body"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section class="card-section management-panel" id="stats-panel">
                     <h2>Results Management (Stats)</h2>
 
                     <div class="stats-panels">
-                        <!-- Panel A: Score entry -->
                         <div class="stats-subpanel">
                             <p class="subpanel-label">&#9654; Apply Fixture Score</p>
                             <form class="data-form">
@@ -314,12 +498,19 @@
                                 <div class="button-group">
                                     <button type="button" id="load-score-fixture">Load Fixture</button>
                                 </div>
-                                <label>Home Score
-                                    <input type="number" id="score-home" min="0">
-                                </label>
-                                <label>Away Score
-                                    <input type="number" id="score-away" min="0">
-                                </label>
+                                <div class="quarter-grid">
+                                    <label>Home Q1 <input type="number" class="quarter-score" id="home-q1" min="0"></label>
+                                    <label>Home Q2 <input type="number" class="quarter-score" id="home-q2" min="0"></label>
+                                    <label>Home Q3 <input type="number" class="quarter-score" id="home-q3" min="0"></label>
+                                    <label>Home Q4 <input type="number" class="quarter-score" id="home-q4" min="0"></label>
+                                    <label>Away Q1 <input type="number" class="quarter-score" id="away-q1" min="0"></label>
+                                    <label>Away Q2 <input type="number" class="quarter-score" id="away-q2" min="0"></label>
+                                    <label>Away Q3 <input type="number" class="quarter-score" id="away-q3" min="0"></label>
+                                    <label>Away Q4 <input type="number" class="quarter-score" id="away-q4" min="0"></label>
+                                </div>
+                                <div class="aggregate-score full-span">
+                                    Home Total: <strong id="score-home-total">0</strong> · Away Total: <strong id="score-away-total">0</strong>
+                                </div>
                                 <label>Apply Result
                                     <span class="checkbox-row"><input type="checkbox" id="score-apply-result"> Mark fixture COMPLETED</span>
                                 </label>
@@ -329,7 +520,6 @@
                             </form>
                         </div>
 
-                        <!-- Panel B: Stat record CRUD -->
                         <div class="stats-subpanel">
                             <p class="subpanel-label">&#9654; Stat Record</p>
                             <form class="data-form" id="stat-record-form">
@@ -342,6 +532,9 @@
                                 <label>Games Played
                                     <input type="number" id="stat-games-played" min="0">
                                 </label>
+                                <div class="button-group">
+                                    <button type="button" id="count-team-games">Count Completed Games</button>
+                                </div>
                                 <label>Wins
                                     <input type="number" id="stat-wins" min="0">
                                 </label>
@@ -379,6 +572,8 @@
                         </table>
                     </div>
                 </section>
+                    </div>
+                </div>
             </main>
             <div class="footer">
                 &copy; 2026 Basketball League Management System
@@ -554,6 +749,31 @@
                 };
             }
 
+            function injuryPayload() {
+                const startDate = document.getElementById("injury-start-date").value;
+                const expectedReturn = document.getElementById("injury-expected-return").value;
+                return {
+                    injuredPlayerId: toNumber(document.getElementById("injured-player-id").value),
+                    playerId: toNumber(document.getElementById("injury-player-id").value),
+                    injuryId: toNumber(document.getElementById("injury-id").value),
+                    injuryName: document.getElementById("injury-name").value.trim(),
+                    expectedTimeOfReturn: expectedReturn ? new Date(expectedReturn + "T00:00:00").toISOString() : null,
+                    injuryStartDate: startDate ? new Date(startDate + "T00:00:00").toISOString() : new Date().toISOString(),
+                    injuryStatus: document.getElementById("injury-status").value
+                };
+            }
+
+            function catalogInjuryPayload() {
+                return {
+                    injuryId: toNumber(document.getElementById("catalog-injury-id").value),
+                    injuryName: document.getElementById("catalog-injury-name").value.trim(),
+                    injuryType: document.getElementById("catalog-injury-type").value.trim(),
+                    injuryDescription: nullableText(document.getElementById("catalog-injury-description").value),
+                    injuryResources: nullableText(document.getElementById("catalog-injury-resources").value),
+                    injuryVideoDescription: nullableText(document.getElementById("catalog-injury-video-description").value)
+                };
+            }
+
             function statPayload() {
                 return {
                     statId: toNumber(document.getElementById("stat-id").value),
@@ -564,6 +784,28 @@
                     points: toNumber(document.getElementById("stat-points").value),
                     pointsScored: toNumber(document.getElementById("stat-points-scored").value)
                 };
+            }
+
+            function quarterTotal(prefix) {
+                return [1, 2, 3, 4].reduce((total, quarter) => {
+                    return total + toNumber(document.getElementById(prefix + "-q" + quarter).value);
+                }, 0);
+            }
+
+            function updateQuarterTotals() {
+                document.getElementById("score-home-total").textContent = String(quarterTotal("home"));
+                document.getElementById("score-away-total").textContent = String(quarterTotal("away"));
+            }
+
+            function attachAdminTabs() {
+                document.querySelectorAll(".admin-tab").forEach((tab) => {
+                    tab.addEventListener("click", () => {
+                        document.querySelectorAll(".admin-tab").forEach((item) => item.classList.remove("active"));
+                        document.querySelectorAll(".management-panel").forEach((panel) => panel.classList.remove("active"));
+                        tab.classList.add("active");
+                        document.getElementById(tab.dataset.tabTarget).classList.add("active");
+                    });
+                });
             }
 
             function setScoreUpdateEnabled(enabled) {
@@ -644,18 +886,22 @@
                 const stadiumsBody = document.getElementById("stadiums-admin-body");
                 const managersBody = document.getElementById("managers-admin-body");
                 const fixtureBody = document.getElementById("fixture-admin-body");
+                const catalogInjuriesBody = document.getElementById("catalog-injuries-admin-body");
+                const injuredPlayersBody = document.getElementById("injuries-admin-body");
                 const statsBody = document.getElementById("stats-admin-body");
 
-                const [playersResponse, teamsResponse, stadiumsResponse, managersResponse, fixturesResponse, statsResponse] = await Promise.all([
+                const [playersResponse, teamsResponse, stadiumsResponse, managersResponse, fixturesResponse, catalogInjuriesResponse, injuredPlayersResponse, statsResponse] = await Promise.all([
                     fetch(apiUrl("/api/players")),
                     fetch(apiUrl("/api/teams")),
                     fetch(apiUrl("/api/stadiums")),
                     fetch(apiUrl("/api/managers")),
                     fetch(apiUrl("/api/fixtures")),
+                    fetch(apiUrl("/api/injuries")),
+                    fetch(apiUrl("/api/injured-players")),
                     fetch(apiUrl("/api/stats"))
                 ]);
 
-                if (!playersResponse.ok || !teamsResponse.ok || !stadiumsResponse.ok || !managersResponse.ok || !fixturesResponse.ok || !statsResponse.ok) {
+                if (!playersResponse.ok || !teamsResponse.ok || !stadiumsResponse.ok || !managersResponse.ok || !fixturesResponse.ok || !catalogInjuriesResponse.ok || !injuredPlayersResponse.ok || !statsResponse.ok) {
                     throw new Error("Failed to load admin table data.");
                 }
 
@@ -664,6 +910,8 @@
                 const stadiums = await stadiumsResponse.json();
                 const managers = await managersResponse.json();
                 const fixtures = await fixturesResponse.json();
+                const catalogInjuries = await catalogInjuriesResponse.json();
+                const injuredPlayers = await injuredPlayersResponse.json();
                 const stats = await statsResponse.json();
 
                 playersBody.innerHTML = "";
@@ -736,10 +984,39 @@
                         <td>${fixture.homeTeamId}</td>
                         <td>${fixture.awayTeamId}</td>
                         <td>${fixture.fixtureLocation || "N/A"}</td>
+                        <td>${fixture.fixtureStatus || "N/A"}</td>
                         <td>${fixture.homeScore != null ? fixture.homeScore : ''}</td>
                         <td>${fixture.awayScore != null ? fixture.awayScore : ''}</td>
                     `;
                     fixtureBody.appendChild(row);
+                });
+
+                catalogInjuriesBody.innerHTML = "";
+                catalogInjuries.forEach((injury) => {
+                    const row = document.createElement("tr");
+                    row.innerHTML = `
+                        <td>${injury.injuryId}</td>
+                        <td>${injury.injuryName}</td>
+                        <td>${injury.injuryType}</td>
+                        <td>${injury.injuryResources || "N/A"}</td>
+                        <td>${injury.injuryVideoDescription || "N/A"}</td>
+                    `;
+                    catalogInjuriesBody.appendChild(row);
+                });
+
+                injuredPlayersBody.innerHTML = "";
+                injuredPlayers.forEach((injury) => {
+                    const row = document.createElement("tr");
+                    row.innerHTML = `
+                        <td>${injury.injuredPlayerId}</td>
+                        <td>${injury.playerId}</td>
+                        <td>${injury.injuryId}</td>
+                        <td>${injury.injuryName}</td>
+                        <td>${formatDate(injury.injuryStartDate)}</td>
+                        <td>${injury.expectedTimeOfReturn ? formatDate(injury.expectedTimeOfReturn) : "N/A"}</td>
+                        <td>${injury.injuryStatus}</td>
+                    `;
+                    injuredPlayersBody.appendChild(row);
                 });
 
                 statsBody.innerHTML = "";
@@ -820,6 +1097,35 @@
                 setInputValue("fixture-location", fixture.fixtureLocation);
             }
 
+            async function loadInjuryDetails() {
+                const injuredPlayerID = toNumber(document.getElementById("injured-player-id").value);
+                if (!injuredPlayerID) {
+                    throw new Error("Injured player record ID is required to load an injury record.");
+                }
+
+                const injury = await requestJSON("/api/admin/injured-players/" + injuredPlayerID, "GET");
+                setInputValue("injury-player-id", injury.playerId);
+                setInputValue("injury-id", injury.injuryId);
+                setInputValue("injury-name", injury.injuryName);
+                setInputValue("injury-start-date", toDateInputValue(injury.injuryStartDate));
+                setInputValue("injury-expected-return", toDateInputValue(injury.expectedTimeOfReturn));
+                setInputValue("injury-status", injury.injuryStatus);
+            }
+
+            async function loadCatalogInjuryDetails() {
+                const injuryID = toNumber(document.getElementById("catalog-injury-id").value);
+                if (!injuryID) {
+                    throw new Error("Injury ID is required to load an injury.");
+                }
+
+                const injury = await requestJSON("/api/admin/injuries/" + injuryID, "GET");
+                setInputValue("catalog-injury-name", injury.injuryName);
+                setInputValue("catalog-injury-type", injury.injuryType);
+                setInputValue("catalog-injury-description", injury.injuryDescription);
+                setInputValue("catalog-injury-resources", injury.injuryResources);
+                setInputValue("catalog-injury-video-description", injury.injuryVideoDescription);
+            }
+
             async function loadScoreFixtureDetails() {
                 const fixtureID = toNumber(document.getElementById("score-fixture-id").value);
                 if (!fixtureID) {
@@ -830,11 +1136,16 @@
                 showFixtureWarning("");
                 setScoreUpdateEnabled(true);
                 setStatRecordingEnabled(true);
-                setStatus("Fixture " + fixture.fixtureId + " is available for score update.", false);
+                setStatus("Fixture " + fixture.fixtureId + " is available for score update. Current score: " + (fixture.homeScore ?? 0) + "-" + (fixture.awayScore ?? 0) + ".", false);
                 return fixture;
             }
 
+            attachAdminTabs();
             attachPositiveIdGuards();
+            document.querySelectorAll(".quarter-score").forEach((input) => {
+                input.addEventListener("input", updateQuarterTotals);
+            });
+            updateQuarterTotals();
             setScoreUpdateEnabled(false);
             setStatRecordingEnabled(false);
 
@@ -1090,6 +1401,114 @@
                 }
             });
 
+            document.getElementById("create-catalog-injury").addEventListener("click", async () => {
+                try {
+                    await requestJSON("/api/admin/injuries", "POST", catalogInjuryPayload());
+                    await loadAdminTables();
+                    setStatus("Basketball injury created successfully.", false);
+                } catch (error) {
+                    setStatus("Create basketball injury failed: " + error.message, true);
+                }
+            });
+
+            document.getElementById("load-catalog-injury").addEventListener("click", async () => {
+                try {
+                    await loadCatalogInjuryDetails();
+                    setStatus("Basketball injury loaded.", false);
+                } catch (error) {
+                    setStatus("Load basketball injury failed: " + error.message, true);
+                }
+            });
+
+            document.getElementById("update-catalog-injury").addEventListener("click", async () => {
+                try {
+                    const injuryID = toNumber(document.getElementById("catalog-injury-id").value);
+                    if (!injuryID) {
+                        throw new Error("Injury ID is required for update.");
+                    }
+                    await requestJSON("/api/admin/injuries/" + injuryID, "PUT", catalogInjuryPayload());
+                    await loadAdminTables();
+                    setStatus("Basketball injury updated successfully.", false);
+                } catch (error) {
+                    setStatus("Update basketball injury failed: " + error.message, true);
+                }
+            });
+
+            document.getElementById("delete-catalog-injury").addEventListener("click", async () => {
+                try {
+                    const injuryID = toNumber(document.getElementById("catalog-injury-id").value);
+                    if (!injuryID) {
+                        throw new Error("Injury ID is required for delete.");
+                    }
+                    await requestJSON("/api/admin/injuries/" + injuryID, "DELETE");
+                    await loadAdminTables();
+                    setStatus("Basketball injury deleted successfully.", false);
+                } catch (error) {
+                    setStatus("Delete basketball injury failed: " + error.message, true);
+                }
+            });
+
+            document.getElementById("create-injury-record").addEventListener("click", async () => {
+                try {
+                    await requestJSON("/api/admin/injured-players", "POST", injuryPayload());
+                    await loadAdminTables();
+                    setStatus("Injury record created successfully.", false);
+                } catch (error) {
+                    setStatus("Create injury record failed: " + error.message, true);
+                }
+            });
+
+            document.getElementById("load-injury-record").addEventListener("click", async () => {
+                try {
+                    await loadInjuryDetails();
+                    setStatus("Injury record loaded.", false);
+                } catch (error) {
+                    setStatus("Load injury record failed: " + error.message, true);
+                }
+            });
+
+            document.getElementById("update-injury-record").addEventListener("click", async () => {
+                try {
+                    const injuredPlayerID = toNumber(document.getElementById("injured-player-id").value);
+                    if (!injuredPlayerID) {
+                        throw new Error("Injured player record ID is required for update.");
+                    }
+                    await requestJSON("/api/admin/injured-players/" + injuredPlayerID, "PUT", injuryPayload());
+                    await loadAdminTables();
+                    setStatus("Injury record updated successfully.", false);
+                } catch (error) {
+                    setStatus("Update injury record failed: " + error.message, true);
+                }
+            });
+
+            document.getElementById("delete-injury-record").addEventListener("click", async () => {
+                try {
+                    const injuredPlayerID = toNumber(document.getElementById("injured-player-id").value);
+                    if (!injuredPlayerID) {
+                        throw new Error("Injured player record ID is required for delete.");
+                    }
+                    await requestJSON("/api/admin/injured-players/" + injuredPlayerID, "DELETE");
+                    await loadAdminTables();
+                    setStatus("Injury record deleted successfully.", false);
+                } catch (error) {
+                    setStatus("Delete injury record failed: " + error.message, true);
+                }
+            });
+
+            document.getElementById("count-team-games").addEventListener("click", async () => {
+                try {
+                    const teamID = toNumber(document.getElementById("stat-team-id").value);
+                    if (!teamID) {
+                        throw new Error("Team ID is required to count games.");
+                    }
+                    const result = await requestJSON("/api/admin/team-games-played/" + teamID, "GET");
+                    setInputValue("stat-games-played", result.gamesPlayed);
+                    setStatus("Completed games counted for team " + teamID + ".", false);
+                } catch (error) {
+                    setStatus("Count team games failed: " + error.message, true);
+                }
+            });
+
             document.getElementById("create-stat").addEventListener("click", async () => {
                 try {
                     await requestJSON("/api/admin/stats", "POST", statPayload());
@@ -1119,19 +1538,17 @@
                     const fixtureID = toNumber(document.getElementById("score-fixture-id").value);
                     if (!fixtureID) throw new Error("Fixture ID is required to apply score.");
                     await loadScoreFixtureDetails();
-                    const homeScore = document.getElementById("score-home").value;
-                    const awayScore = document.getElementById("score-away").value;
+                    const homeScore = quarterTotal("home");
+                    const awayScore = quarterTotal("away");
                     const applyResult = document.getElementById("score-apply-result").checked;
-                    const payload = {};
-                    if (homeScore !== "") payload.homeScore = Number(homeScore);
-                    if (awayScore !== "") payload.awayScore = Number(awayScore);
+                    const payload = {
+                        homeScore: homeScore,
+                        awayScore: awayScore
+                    };
                     if (applyResult) payload.applyResult = true;
-                    if (!payload.homeScore && payload.homeScore !== 0 && !payload.awayScore && payload.awayScore !== 0 && !payload.applyResult) {
-                        throw new Error("At least one score or apply flag must be provided.");
-                    }
                     await requestJSON("/api/admin/fixtures/" + fixtureID, "PUT", payload);
                     await loadAdminTables();
-                    setStatus("Fixture score applied.", false);
+                    setStatus("Fixture score applied from quarter totals.", false);
                 } catch (error) {
                     setScoreUpdateEnabled(false);
                     setStatRecordingEnabled(false);

@@ -3,9 +3,12 @@ package main
 import (
 	db "blms/Database"
 	"crypto/rand"
+	"crypto/sha256"
+	"database/sql"
 	"encoding/base64"
+	"encoding/hex"
+	"fmt"
 	"net/http"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -21,32 +24,9 @@ type adminSessionStore struct {
 
 var adminSessions = adminSessionStore{tokens: make(map[string]time.Time)}
 
-// Member session management (1 hour TTL)
-const memberSessionCookieName = "blms_member_session"
-const memberSessionTTL = 1 * time.Hour
-
-type memberSessionInfo struct {
-	username  string
-	expiresAt time.Time
-}
-
-type memberSessionStore struct {
-	mu     sync.Mutex
-	tokens map[string]memberSessionInfo
-}
-
-var memberSessions = memberSessionStore{tokens: make(map[string]memberSessionInfo)}
-
-func adminCredentials() (string, string) {
-	username := strings.TrimSpace(os.Getenv("BLMS_ADMIN_USERNAME"))
-	password := strings.TrimSpace(os.Getenv("BLMS_ADMIN_PASSWORD"))
-	if username == "" {
-		username = "admin"
-	}
-	if password == "" {
-		password = "admin123"
-	}
-	return username, password
+type adminCredential struct {
+	Username     string
+	PasswordHash string
 }
 
 func adminLoginPageHandler(w http.ResponseWriter, r *http.Request) {
@@ -68,8 +48,10 @@ func adminLoginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var payload struct {
-		Username string `json:"username"`
-		Password string `json:"password"`
+		Username        string `json:"username"`
+		Password        string `json:"password"`
+		CreatePassword  bool   `json:"createPassword,omitempty"`
+		ConfirmPassword string `json:"confirmPassword,omitempty"`
 	}
 	if err := decodeJSON(r, &payload); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid login payload")
@@ -85,16 +67,33 @@ func adminLoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Authenticate against admin_users DB table first
-	ok, err := db.AuthenticateAdmin(payload.Username, payload.Password)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to authenticate admin")
-		return
+	authStatus := "admin logged in"
+
+	if payload.CreatePassword {
+		if payload.Password != payload.ConfirmPassword {
+			writeError(w, http.StatusBadRequest, "passwords do not match")
+			return
+		}
+
+		created, err := upsertAdminPassword(payload.Username, payload.Password)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to save admin account")
+			return
+		}
+
+		authStatus = "admin password updated"
+		if created {
+			authStatus = "admin account created"
+		}
 	}
-	if !ok {
-		// Fallback: allow env-based credentials for quick local overrides
-		expectedUsername, expectedPassword := adminCredentials()
-		if payload.Username != expectedUsername || payload.Password != expectedPassword {
+
+	if !payload.CreatePassword {
+		ok, err := authenticateAdmin(payload.Username, payload.Password)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to authenticate admin")
+			return
+		}
+		if !ok {
 			writeError(w, http.StatusUnauthorized, "invalid admin credentials")
 			return
 		}
@@ -118,7 +117,7 @@ func adminLoginHandler(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteLaxMode,
 	})
 
-	writeJSON(w, http.StatusOK, map[string]string{"status": "admin logged in"})
+	writeJSON(w, http.StatusOK, map[string]string{"status": authStatus})
 }
 
 func adminLogoutHandler(w http.ResponseWriter, r *http.Request) {
@@ -189,104 +188,6 @@ func adminTokenFromRequest(r *http.Request) string {
 	return ""
 }
 
-// Member token retrieval (Authorization header or cookie)
-func memberTokenFromRequest(r *http.Request) string {
-	authHeader := strings.TrimSpace(r.Header.Get("Authorization"))
-	if strings.HasPrefix(strings.ToLower(authHeader), "bearer ") {
-		return strings.TrimSpace(authHeader[7:])
-	}
-
-	cookie, err := r.Cookie(memberSessionCookieName)
-	if err == nil {
-		return strings.TrimSpace(cookie.Value)
-	}
-	return ""
-}
-
-func storeMemberToken(token, username string, expiresAt time.Time) {
-	memberSessions.mu.Lock()
-	defer memberSessions.mu.Unlock()
-	memberSessions.tokens[token] = memberSessionInfo{username: username, expiresAt: expiresAt}
-}
-
-func deleteMemberToken(token string) {
-	memberSessions.mu.Lock()
-	defer memberSessions.mu.Unlock()
-	delete(memberSessions.tokens, token)
-}
-
-func memberUsernameFromToken(token string) (string, bool) {
-	memberSessions.mu.Lock()
-	defer memberSessions.mu.Unlock()
-	info, ok := memberSessions.tokens[token]
-	if !ok {
-		return "", false
-	}
-	if time.Now().After(info.expiresAt) {
-		delete(memberSessions.tokens, token)
-		return "", false
-	}
-	return info.username, true
-}
-
-// logout handler for members
-func memberLogoutHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
-		return
-	}
-	token := memberTokenFromRequest(r)
-	if token != "" {
-		deleteMemberToken(token)
-	}
-	http.SetCookie(w, &http.Cookie{
-		Name:     memberSessionCookieName,
-		Value:    "",
-		Path:     "/",
-		Expires:  time.Unix(0, 0),
-		MaxAge:   -1,
-		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
-	})
-	writeJSON(w, http.StatusOK, map[string]string{"status": "logged out"})
-}
-
-// returns session info for the current member (if any)
-func memberMeHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
-		return
-	}
-	token := memberTokenFromRequest(r)
-	if token == "" {
-		writeError(w, http.StatusUnauthorized, "no active session")
-		return
-	}
-	username, ok := memberUsernameFromToken(token)
-	if !ok {
-		writeError(w, http.StatusUnauthorized, "session expired")
-		return
-	}
-
-	// Lookup user details from DB
-	user, err := db.GetUserByID(username)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to load user")
-		return
-	}
-	if user == nil {
-		writeError(w, http.StatusUnauthorized, "user not found")
-		return
-	}
-
-	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"username":     user.UserID,
-		"firstName":    user.FirstName,
-		"lastName":     user.LastName,
-		"emailAddress": user.EmailAddress,
-	})
-}
-
 func generateAdminToken() (string, error) {
 	buffer := make([]byte, 32)
 	if _, err := rand.Read(buffer); err != nil {
@@ -305,4 +206,119 @@ func deleteAdminToken(token string) {
 	adminSessions.mu.Lock()
 	defer adminSessions.mu.Unlock()
 	delete(adminSessions.tokens, token)
+}
+
+func getAdminCredential(username string) (*adminCredential, error) {
+	conn, err := db.EnsureConnected()
+	if err != nil {
+		return nil, fmt.Errorf("admin credential get: %w", err)
+	}
+
+	if err := db.ValidateUsername(username, 3, 80); err != nil {
+		return nil, err
+	}
+
+	var credential adminCredential
+	err = conn.QueryRow(`
+		SELECT username, password_hash
+		FROM admin_users
+		WHERE LOWER(username) = LOWER(:1)
+	`, username).Scan(&credential.Username, &credential.PasswordHash)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("query admin credential: %w", err)
+	}
+
+	return &credential, nil
+}
+
+func authenticateAdmin(username, password string) (bool, error) {
+	if err := db.ValidatePassword(password, 8, 72); err != nil {
+		return false, err
+	}
+
+	credential, err := getAdminCredential(username)
+	if err != nil {
+		return false, fmt.Errorf("admin auth: %w", err)
+	}
+	if credential == nil {
+		return false, nil
+	}
+	if !adminPasswordHashMatches(credential.PasswordHash, password) {
+		return false, nil
+	}
+
+	return true, nil
+}
+
+func upsertAdminPassword(username, password string) (bool, error) {
+	conn, err := db.EnsureConnected()
+	if err != nil {
+		return false, fmt.Errorf("admin password save: %w", err)
+	}
+	username = strings.TrimSpace(username)
+
+	if err := db.ValidateUsername(username, 3, 80); err != nil {
+		return false, err
+	}
+	if err := db.ValidatePassword(password, 8, 72); err != nil {
+		return false, err
+	}
+
+	hashedPassword := adminHashPassword(password)
+	tx, err := conn.Begin()
+	if err != nil {
+		return false, fmt.Errorf("begin admin password transaction: %w", err)
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	var existingCount int64
+	err = tx.QueryRow(`
+		SELECT COUNT(*)
+		FROM admin_users
+		WHERE LOWER(username) = LOWER(:1)
+	`, username).Scan(&existingCount)
+	if err != nil {
+		return false, fmt.Errorf("check admin user: %w", err)
+	}
+
+	if existingCount > 0 {
+		if _, err := tx.Exec(`
+			UPDATE admin_users
+			SET password_hash = :1
+			WHERE LOWER(username) = LOWER(:2)
+		`, hashedPassword, username); err != nil {
+			return false, fmt.Errorf("update admin password: %w", err)
+		}
+		if err := tx.Commit(); err != nil {
+			return false, fmt.Errorf("commit admin password update: %w", err)
+		}
+		return false, nil
+	}
+
+	if _, err := tx.Exec(`
+		INSERT INTO admin_users (username, password_hash)
+		VALUES (:1, :2)
+	`, username, hashedPassword); err != nil {
+		return false, fmt.Errorf("insert admin password: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return false, fmt.Errorf("commit admin password insert: %w", err)
+	}
+
+	return true, nil
+}
+
+func adminPasswordHashMatches(storedHash, password string) bool {
+	return strings.EqualFold(strings.TrimSpace(storedHash), adminHashPassword(password))
+}
+
+func adminHashPassword(password string) string {
+	sum := sha256.Sum256([]byte(password))
+	return hex.EncodeToString(sum[:])
 }

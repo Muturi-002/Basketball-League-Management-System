@@ -204,6 +204,13 @@ func CreateUser(user User) (*AuthUser, error) {
 	}
 
 	hashedPassword := hashPassword(password)
+	tx, err := conn.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("begin user create transaction: %w", err)
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
 
 	var favTeamValue any
 	if favTeamID != "" {
@@ -214,7 +221,7 @@ func CreateUser(user User) (*AuthUser, error) {
 		favTeamValue = teamID
 	}
 
-	if _, err := conn.Exec(`
+	if _, err := tx.Exec(`
 		INSERT INTO users (
 			user_id,
 			first_name,
@@ -231,6 +238,10 @@ func CreateUser(user User) (*AuthUser, error) {
 		favTeamValue,
 	); err != nil {
 		return nil, fmt.Errorf("insert user: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit user create: %w", err)
 	}
 
 	return &AuthUser{
@@ -261,37 +272,4 @@ func nullInt64ToString(value sql.NullInt64) string {
 		return ""
 	}
 	return strconv.FormatInt(value.Int64, 10)
-}
-
-// AuthenticateAdmin checks the provided admin username and password against the admin_users table.
-func AuthenticateAdmin(username, password string) (bool, error) {
-	conn, err := EnsureConnected()
-	if err != nil {
-		return false, fmt.Errorf("admin auth: %w", err)
-	}
-
-	if err := ValidateUsername(username, 3, 80); err != nil {
-		return false, err
-	}
-	if err := ValidatePassword(password, 8, 72); err != nil {
-		return false, err
-	}
-
-	var storedHash string
-	err = conn.QueryRow(`
-		SELECT password_hash
-		FROM admin_users
-		WHERE LOWER(username) = LOWER(:1)
-	`, username).Scan(&storedHash)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return false, nil
-		}
-		return false, fmt.Errorf("query admin user: %w", err)
-	}
-
-	if !passwordHashMatches(storedHash, password) {
-		return false, nil
-	}
-	return true, nil
 }

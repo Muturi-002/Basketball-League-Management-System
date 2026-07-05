@@ -1,16 +1,35 @@
 package main
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"log"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	db "blms/Database"
 )
+
+// Member session management (1 hour TTL)
+const memberSessionCookieName = "blms_member_session"
+const memberSessionTTL = 1 * time.Hour
+
+type memberSessionInfo struct {
+	username  string
+	expiresAt time.Time
+}
+
+type memberSessionStore struct {
+	mu     sync.Mutex
+	tokens map[string]memberSessionInfo
+}
+
+var memberSessions = memberSessionStore{tokens: make(map[string]memberSessionInfo)}
 
 func main() {
 	if err := db.ConnectFromEnv(); err != nil {
@@ -52,10 +71,15 @@ func main() {
 	adminMux.Handle("/api/admin/players/", requireAdmin(http.HandlerFunc(adminPlayerByIDHandler)))
 	adminMux.Handle("/api/admin/teams", requireAdmin(http.HandlerFunc(adminTeamsHandler)))
 	adminMux.Handle("/api/admin/teams/", requireAdmin(http.HandlerFunc(adminTeamByIDHandler)))
+	adminMux.Handle("/api/admin/team-games-played/", requireAdmin(http.HandlerFunc(adminTeamGamesPlayedHandler)))
 	adminMux.Handle("/api/admin/stadiums", requireAdmin(http.HandlerFunc(adminStadiumsHandler)))
 	adminMux.Handle("/api/admin/stadiums/", requireAdmin(http.HandlerFunc(adminStadiumByIDHandler)))
 	adminMux.Handle("/api/admin/managers", requireAdmin(http.HandlerFunc(adminManagersHandler)))
 	adminMux.Handle("/api/admin/managers/", requireAdmin(http.HandlerFunc(adminManagerByIDHandler)))
+	adminMux.Handle("/api/admin/injuries", requireAdmin(http.HandlerFunc(adminInjuriesHandler)))
+	adminMux.Handle("/api/admin/injuries/", requireAdmin(http.HandlerFunc(adminInjuryByIDHandler)))
+	adminMux.Handle("/api/admin/injured-players", requireAdmin(http.HandlerFunc(adminInjuredPlayersHandler)))
+	adminMux.Handle("/api/admin/injured-players/", requireAdmin(http.HandlerFunc(adminInjuredPlayerByIDHandler)))
 	adminMux.Handle("/api/admin/stats", requireAdmin(http.HandlerFunc(adminStatsHandler)))
 	adminMux.Handle("/api/admin/stats/", requireAdmin(http.HandlerFunc(adminStatByIDHandler)))
 	adminMux.Handle("/api/admin/fixtures", requireAdmin(http.HandlerFunc(adminFixturesHandler)))
@@ -329,8 +353,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// create a session token for the member
-	token, err := generateAdminToken()
+	token, err := generateMemberToken()
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to create session")
 		return
@@ -400,6 +423,111 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 		"message": "Member account created",
 		"member":  authMemberPayload(user),
 	})
+}
+
+// Member token retrieval (Authorization header or cookie)
+func memberTokenFromRequest(r *http.Request) string {
+	authHeader := strings.TrimSpace(r.Header.Get("Authorization"))
+	if strings.HasPrefix(strings.ToLower(authHeader), "bearer ") {
+		return strings.TrimSpace(authHeader[7:])
+	}
+
+	cookie, err := r.Cookie(memberSessionCookieName)
+	if err == nil {
+		return strings.TrimSpace(cookie.Value)
+	}
+	return ""
+}
+
+func storeMemberToken(token, username string, expiresAt time.Time) {
+	memberSessions.mu.Lock()
+	defer memberSessions.mu.Unlock()
+	memberSessions.tokens[token] = memberSessionInfo{username: username, expiresAt: expiresAt}
+}
+
+func deleteMemberToken(token string) {
+	memberSessions.mu.Lock()
+	defer memberSessions.mu.Unlock()
+	delete(memberSessions.tokens, token)
+}
+
+func memberUsernameFromToken(token string) (string, bool) {
+	memberSessions.mu.Lock()
+	defer memberSessions.mu.Unlock()
+	info, ok := memberSessions.tokens[token]
+	if !ok {
+		return "", false
+	}
+	if time.Now().After(info.expiresAt) {
+		delete(memberSessions.tokens, token)
+		return "", false
+	}
+	return info.username, true
+}
+
+// logout handler for members
+func memberLogoutHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	token := memberTokenFromRequest(r)
+	if token != "" {
+		deleteMemberToken(token)
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name:     memberSessionCookieName,
+		Value:    "",
+		Path:     "/",
+		Expires:  time.Unix(0, 0),
+		MaxAge:   -1,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	})
+	writeJSON(w, http.StatusOK, map[string]string{"status": "logged out"})
+}
+
+// returns session info for the current member (if any)
+func memberMeHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	token := memberTokenFromRequest(r)
+	if token == "" {
+		writeError(w, http.StatusUnauthorized, "no active session")
+		return
+	}
+	username, ok := memberUsernameFromToken(token)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "session expired")
+		return
+	}
+
+	user, err := db.GetUserByID(username)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to load user")
+		return
+	}
+	if user == nil {
+		writeError(w, http.StatusUnauthorized, "user not found")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"username":     user.UserID,
+		"firstName":    user.FirstName,
+		"lastName":     user.LastName,
+		"emailAddress": user.EmailAddress,
+	})
+}
+
+func generateMemberToken() (string, error) {
+	buffer := make([]byte, 32)
+	if _, err := rand.Read(buffer); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(buffer), nil
 }
 
 func usersHandler(w http.ResponseWriter, r *http.Request) {

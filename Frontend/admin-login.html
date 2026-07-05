@@ -19,6 +19,7 @@
 
             <section class="card-section">
                 <h2>Administrator Access</h2>
+                <p class="section-note">Use the same form to sign in, recover a forgotten password, or create a new admin account.</p>
                 <form id="adminLoginForm" class="data-form">
                     <label>
                         Username
@@ -28,8 +29,14 @@
                         Password
                         <input id="adminPassword" name="password" type="password" autocomplete="current-password" required>
                     </label>
+                    <label id="adminConfirmPasswordGroup" hidden>
+                        Confirm New Password
+                        <input id="adminConfirmPassword" name="confirmPassword" type="password" autocomplete="new-password">
+                    </label>
                     <div class="button-group">
                         <button type="submit" id="adminLoginButton">Sign in</button>
+                        <button type="button" id="adminCreatePasswordButton">Create or reset admin account</button>
+                        <button type="button" id="adminCancelCreatePasswordButton" hidden>Back to sign in</button>
                     </div>
                 </form>
                 <div class="status-message" id="adminLoginMessage" aria-live="polite"></div>
@@ -53,17 +60,49 @@
                 button.textContent = busy ? "Please wait..." : label;
             }
 
+            let createPasswordMode = false;
+
+            function setCreatePasswordMode(enabled) {
+                createPasswordMode = enabled;
+                const confirmGroup = document.getElementById("adminConfirmPasswordGroup");
+                const confirmInput = document.getElementById("adminConfirmPassword");
+                const submitButton = document.getElementById("adminLoginButton");
+                const createButton = document.getElementById("adminCreatePasswordButton");
+                const cancelButton = document.getElementById("adminCancelCreatePasswordButton");
+
+                confirmGroup.hidden = !enabled;
+                confirmInput.required = enabled;
+                confirmInput.value = "";
+                submitButton.textContent = enabled ? "Save admin account" : "Sign in";
+                createButton.hidden = enabled;
+                cancelButton.hidden = !enabled;
+            }
+
+            document.getElementById("adminCreatePasswordButton").addEventListener("click", () => {
+                setMessage(document.getElementById("adminLoginMessage"), "", "");
+                setCreatePasswordMode(true);
+            });
+
+            document.getElementById("adminCancelCreatePasswordButton").addEventListener("click", () => {
+                setMessage(document.getElementById("adminLoginMessage"), "", "");
+                setCreatePasswordMode(false);
+            });
+
             document.getElementById("adminLoginForm").addEventListener("submit", async (event) => {
                 event.preventDefault();
                 const message = document.getElementById("adminLoginMessage");
                 const button = document.getElementById("adminLoginButton");
+                const confirmPassword = document.getElementById("adminConfirmPassword");
+                const submitLabel = createPasswordMode ? "Save admin account" : "Sign in";
 
                 setMessage(message, "", "");
-                setBusy(button, true, "Sign in");
+                setBusy(button, true, submitLabel);
 
                 const payload = {
                     username: document.getElementById("adminUsername").value.trim(),
-                    password: document.getElementById("adminPassword").value
+                    password: document.getElementById("adminPassword").value,
+                    createPassword: createPasswordMode,
+                    confirmPassword: createPasswordMode ? confirmPassword.value : ""
                 };
 
                 try {
@@ -80,7 +119,7 @@
                 } catch (error) {
                     setMessage(message, error.message, "error");
                 } finally {
-                    setBusy(button, false, "Sign in");
+                    setBusy(button, false, submitLabel);
                 }
             });
         </script>
