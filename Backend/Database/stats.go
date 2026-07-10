@@ -7,23 +7,17 @@ import (
 
 // Stat maps team-level league statistics.
 type Stat struct {
-	StatID        int64 `json:"statId"`
-	TeamID        int64 `json:"teamId"`
-	GamesPlayed   int   `json:"gamesPlayed"`
-	Wins          int   `json:"wins"`
-	Losses        int   `json:"losses"`
-	Points        int   `json:"points"`
-	PointsScored  int   `json:"pointsScored"`
-	PointsAllowed int   `json:"pointsAllowed"`
+	StatID       int64 `json:"statId"`
+	TeamID       int64 `json:"teamId"`
+	GamesPlayed  int   `json:"gamesPlayed"`
+	Wins         int   `json:"wins"`
+	Losses       int   `json:"losses"`
+	Points       int   `json:"points"`
+	PointsScored int   `json:"pointsScored"`
 }
 
 func ListStats() ([]Stat, error) {
-	conn, err := EnsureConnected()
-	if err != nil {
-		return nil, fmt.Errorf("stats list: %w", err)
-	}
-
-	rows, err := conn.Query(`
+	return queryList("stats list", "query stats", "iterate stats", `
 		SELECT
 			team_stat_id,
 			team_id,
@@ -31,17 +25,9 @@ func ListStats() ([]Stat, error) {
 			wins,
 			losses,
 			league_points,
-			points_scored,
-			points_allowed
+			points_scored
 		FROM team_statistics
-		ORDER BY league_points DESC, wins DESC`)
-	if err != nil {
-		return nil, fmt.Errorf("query stats: %w", err)
-	}
-	defer rows.Close()
-
-	stats := make([]Stat, 0)
-	for rows.Next() {
+		ORDER BY league_points DESC, wins DESC`, func(rows *sql.Rows) (Stat, error) {
 		var stat Stat
 		if err := rows.Scan(
 			&stat.StatID,
@@ -51,18 +37,11 @@ func ListStats() ([]Stat, error) {
 			&stat.Losses,
 			&stat.Points,
 			&stat.PointsScored,
-			&stat.PointsAllowed,
 		); err != nil {
-			return nil, fmt.Errorf("scan stat row: %w", err)
+			return Stat{}, fmt.Errorf("scan stat row: %w", err)
 		}
-		stats = append(stats, stat)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate stats: %w", err)
-	}
-
-	return stats, nil
+		return stat, nil
+	})
 }
 
 func GetStatByID(statID int64) (*Stat, error) {
@@ -80,8 +59,7 @@ func GetStatByID(statID int64) (*Stat, error) {
 			wins,
 			losses,
 			league_points,
-			points_scored,
-			points_allowed
+			points_scored
 		FROM team_statistics
 		WHERE team_stat_id = :1`, statID).Scan(
 		&stat.StatID,
@@ -91,7 +69,6 @@ func GetStatByID(statID int64) (*Stat, error) {
 		&stat.Losses,
 		&stat.Points,
 		&stat.PointsScored,
-		&stat.PointsAllowed,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {

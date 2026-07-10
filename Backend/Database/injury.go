@@ -29,12 +29,7 @@ type InjuredPlayer struct {
 }
 
 func ListInjuries() ([]Injury, error) {
-	conn, err := EnsureConnected()
-	if err != nil {
-		return nil, fmt.Errorf("injuries list: %w", err)
-	}
-
-	rows, err := conn.Query(`
+	return queryList("injuries list", "query injuries", "iterate injuries", `
 		SELECT
 			injury_id,
 			injury_name,
@@ -43,14 +38,7 @@ func ListInjuries() ([]Injury, error) {
 			injury_resources,
 			injury_video_description
 		FROM injuries
-		ORDER BY injury_id`)
-	if err != nil {
-		return nil, fmt.Errorf("query injuries: %w", err)
-	}
-	defer rows.Close()
-
-	injuries := make([]Injury, 0)
-	for rows.Next() {
+		ORDER BY injury_id`, func(rows *sql.Rows) (Injury, error) {
 		var injury Injury
 		var (
 			description      sql.NullString
@@ -66,21 +54,15 @@ func ListInjuries() ([]Injury, error) {
 			&resources,
 			&videoDescription,
 		); err != nil {
-			return nil, fmt.Errorf("scan injury row: %w", err)
+			return Injury{}, fmt.Errorf("scan injury row: %w", err)
 		}
 
 		injury.InjuryDescription = nullStringPtr(description)
 		injury.InjuryResources = nullStringPtr(resources)
 		injury.InjuryVideoDescription = nullStringPtr(videoDescription)
 
-		injuries = append(injuries, injury)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate injuries: %w", err)
-	}
-
-	return injuries, nil
+		return injury, nil
+	})
 }
 
 func GetInjuryByID(injuryID int64) (*Injury, error) {
@@ -128,12 +110,7 @@ func GetInjuryByID(injuryID int64) (*Injury, error) {
 }
 
 func ListInjuredPlayers() ([]InjuredPlayer, error) {
-	conn, err := EnsureConnected()
-	if err != nil {
-		return nil, fmt.Errorf("injured players list: %w", err)
-	}
-
-	rows, err := conn.Query(`
+	return queryList("injured players list", "query injured players", "iterate injured players", `
 		SELECT
 			injured_player_id,
 			player_id,
@@ -143,14 +120,7 @@ func ListInjuredPlayers() ([]InjuredPlayer, error) {
 			injury_start_date,
 			injury_status
 		FROM injured_players
-		ORDER BY injury_start_date DESC`)
-	if err != nil {
-		return nil, fmt.Errorf("query injured players: %w", err)
-	}
-	defer rows.Close()
-
-	injured := make([]InjuredPlayer, 0)
-	for rows.Next() {
+		ORDER BY injury_start_date DESC`, func(rows *sql.Rows) (InjuredPlayer, error) {
 		var ip InjuredPlayer
 		var expectedReturn sql.NullTime
 
@@ -163,31 +133,17 @@ func ListInjuredPlayers() ([]InjuredPlayer, error) {
 			&ip.InjuryStartDate,
 			&ip.InjuryStatus,
 		); err != nil {
-			return nil, fmt.Errorf("scan injured player row: %w", err)
+			return InjuredPlayer{}, fmt.Errorf("scan injured player row: %w", err)
 		}
 
-		if expectedReturn.Valid {
-			ip.ExpectedTimeOfReturn = &expectedReturn.Time
-		}
-
-		injured = append(injured, ip)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate injured players: %w", err)
-	}
-
-	return injured, nil
+		ip.ExpectedTimeOfReturn = nullTimePtr(expectedReturn)
+		return ip, nil
+	})
 }
 
 // ListCurrentInjuredPlayers returns only players with injury_status = 'CURRENT'.
 func ListCurrentInjuredPlayers() ([]InjuredPlayer, error) {
-	conn, err := EnsureConnected()
-	if err != nil {
-		return nil, fmt.Errorf("current injured players list: %w", err)
-	}
-
-	rows, err := conn.Query(`
+	return queryList("current injured players list", "query current injured players", "iterate current injured players", `
 		SELECT
 			injured_player_id,
 			player_id,
@@ -198,14 +154,7 @@ func ListCurrentInjuredPlayers() ([]InjuredPlayer, error) {
 			injury_status
 		FROM injured_players
 		WHERE injury_status = 'CURRENT'
-		ORDER BY injury_start_date DESC`)
-	if err != nil {
-		return nil, fmt.Errorf("query current injured players: %w", err)
-	}
-	defer rows.Close()
-
-	injured := make([]InjuredPlayer, 0)
-	for rows.Next() {
+		ORDER BY injury_start_date DESC`, func(rows *sql.Rows) (InjuredPlayer, error) {
 		var ip InjuredPlayer
 		var expectedReturn sql.NullTime
 
@@ -218,21 +167,12 @@ func ListCurrentInjuredPlayers() ([]InjuredPlayer, error) {
 			&ip.InjuryStartDate,
 			&ip.InjuryStatus,
 		); err != nil {
-			return nil, fmt.Errorf("scan injured player row: %w", err)
+			return InjuredPlayer{}, fmt.Errorf("scan injured player row: %w", err)
 		}
 
-		if expectedReturn.Valid {
-			ip.ExpectedTimeOfReturn = &expectedReturn.Time
-		}
-
-		injured = append(injured, ip)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate current injured players: %w", err)
-	}
-
-	return injured, nil
+		ip.ExpectedTimeOfReturn = nullTimePtr(expectedReturn)
+		return ip, nil
+	})
 }
 
 func GetInjuredPlayerByID(injuredPlayerID int64) (*InjuredPlayer, error) {
@@ -270,9 +210,7 @@ func GetInjuredPlayerByID(injuredPlayerID int64) (*InjuredPlayer, error) {
 		return nil, fmt.Errorf("query injured player by id: %w", err)
 	}
 
-	if expectedReturn.Valid {
-		ip.ExpectedTimeOfReturn = &expectedReturn.Time
-	}
+	ip.ExpectedTimeOfReturn = nullTimePtr(expectedReturn)
 
 	return &ip, nil
 }

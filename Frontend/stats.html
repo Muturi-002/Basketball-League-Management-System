@@ -20,7 +20,7 @@
                         <li><a href="fixtures.html">Fixtures</a></li>
                     </ul>
                 </nav>
-                <a class="login-button" href="auth.html">Login</a>
+                <a class="login-button" href="auth.html">Sign In</a>
             </div>
         </header>
 
@@ -35,14 +35,12 @@
                     <table class="data-table" id="stats-table">
                         <thead>
                         <tr>
-                            <th>Stat ID</th>
                             <th>Team</th>
                             <th>Games Played</th>
                             <th>Wins</th>
                             <th>Losses</th>
                             <th>Points</th>
                             <th>Points Scored</th>
-                            <th>Points Allowed</th>
                         </tr>
                         </thead>
                         <tbody id="stats-body"></tbody>
@@ -51,11 +49,15 @@
 
                 <h2>Player Statistics</h2>
                 <div id="player-stats-status" class="status-message">Loading player statistics...</div>
+                <div class="button-group" id="player-stats-pagination" hidden>
+                    <button type="button" id="player-prev">Previous</button>
+                    <span id="player-page-info" class="section-note" aria-live="polite"></span>
+                    <button type="button" id="player-next">Next</button>
+                </div>
                 <div class="table-wrapper">
                     <table class="data-table" id="player-stats-table">
                         <thead>
                         <tr>
-                            <th>Player ID</th>
                             <th>Name</th>
                             <th>Team</th>
                             <th>Jersey</th>
@@ -89,6 +91,10 @@
             async function loadStats() {
                 const status = document.getElementById("stats-status");
                 const body = document.getElementById("stats-body");
+                const playerPagination = document.getElementById("player-stats-pagination");
+                const playerPageInfo = document.getElementById("player-page-info");
+                const playerPrev = document.getElementById("player-prev");
+                const playerNext = document.getElementById("player-next");
 
                 try {
                     const [statsResponse, teamsResponse, playersResponse] = await Promise.all([
@@ -97,7 +103,7 @@
                         fetch(apiUrl("/api/players"))
                     ]);
 
-                    if (!statsResponse.ok || !teamsResponse.ok) {
+                    if (!statsResponse.ok || !teamsResponse.ok || !playersResponse.ok) {
                         throw new Error("Unable to fetch stats or teams data.");
                     }
 
@@ -110,29 +116,34 @@
                     });
 
                     body.innerHTML = "";
-                    stats.forEach((stat) => {
+                    const sortedStats = [...stats].sort((a, b) => {
+                        if (b.points !== a.points) return b.points - a.points;
+                        if (b.wins !== a.wins) return b.wins - a.wins;
+                        if (a.losses !== b.losses) return a.losses - b.losses;
+                        return b.pointsScored - a.pointsScored;
+                    });
+
+                    sortedStats.forEach((stat) => {
                         const row = document.createElement("tr");
                         row.innerHTML = `
-                            <td>${stat.statId}</td>
                             <td>${teamNameByID.get(stat.teamId) || stat.teamId}</td>
                             <td>${stat.gamesPlayed}</td>
                             <td>${stat.wins}</td>
                             <td>${stat.losses}</td>
                             <td>${stat.points}</td>
                             <td>${stat.pointsScored}</td>
-                            <td>${stat.pointsAllowed}</td>
                         `;
                         body.appendChild(row);
                     });
 
-                    status.textContent = "Statistics loaded: " + stats.length;
+                    status.textContent = "Statistics loaded: " + sortedStats.length + " (sorted first to last).";
                     status.className = "status-message status-success";
 
-                    // Build player statistics table using players' currentSeasonStats string when available.
+                    // Build player statistics rows once, then paginate at 15 players per panel.
                     const pstatus = document.getElementById("player-stats-status");
                     const pbody = document.getElementById("player-stats-body");
-                    pbody.innerHTML = "";
-                    players.forEach((p) => {
+                    const playerRows = [...players]
+                        .map((p) => {
                         // Parse the `currentSeasonStats` string like: 'PPG=12.3, APG=3.2, RPG=5.1, SPG=1.0, BPG=0.4'
                         let ppg = "N/A", apg = "N/A", rpg = "N/A", spg = "N/A", bpg = "N/A";
                         if (p.currentSeasonStats) {
@@ -150,28 +161,73 @@
                             });
                         }
 
-                        const row = document.createElement("tr");
                         const name = p.middleName ? (p.firstName + ' ' + p.middleName + ' ' + p.lastName) : (p.firstName + ' ' + p.lastName);
-                        row.innerHTML = `
-                            <td>${p.playerId}</td>
-                            <td>${name}</td>
-                            <td>${teamNameByID.get(p.teamId) || p.teamId}</td>
-                            <td>${p.jerseyNumber || 'N/A'}</td>
-                            <td>${p.positionCode || 'N/A'}</td>
-                            <td>${ppg}</td>
-                            <td>${apg}</td>
-                            <td>${rpg}</td>
-                            <td>${spg}</td>
-                            <td>${bpg}</td>
-                        `;
-                        pbody.appendChild(row);
-                    });
+                        const parsedPPG = Number.parseFloat(ppg);
+                        const ppgForSort = Number.isFinite(parsedPPG) ? parsedPPG : -1;
 
-                    pstatus.textContent = "Player statistics loaded: " + players.length;
+                        return {
+                            ppgForSort,
+                            row: `
+                            <tr>
+                                <td>${name}</td>
+                                <td>${teamNameByID.get(p.teamId) || p.teamId}</td>
+                                <td>${p.jerseyNumber || 'N/A'}</td>
+                                <td>${p.positionCode || 'N/A'}</td>
+                                <td>${ppg}</td>
+                                <td>${apg}</td>
+                                <td>${rpg}</td>
+                                <td>${spg}</td>
+                                <td>${bpg}</td>
+                            </tr>
+                        `
+                        };
+                        })
+                        .sort((a, b) => b.ppgForSort - a.ppgForSort)
+                        .map((entry) => entry.row);
+
+                    const pageSize = 15;
+                    let currentPage = 1;
+                    const totalPages = Math.max(1, Math.ceil(playerRows.length / pageSize));
+
+                    function renderPlayerPage() {
+                        const start = (currentPage - 1) * pageSize;
+                        const end = start + pageSize;
+                        pbody.innerHTML = playerRows.slice(start, end).join("");
+
+                        playerPageInfo.textContent = "Page " + currentPage + " of " + totalPages;
+                        playerPrev.disabled = currentPage === 1;
+                        playerNext.disabled = currentPage === totalPages;
+                    }
+
+                    playerPrev.onclick = function () {
+                        if (currentPage > 1) {
+                            currentPage -= 1;
+                            renderPlayerPage();
+                        }
+                    };
+
+                    playerNext.onclick = function () {
+                        if (currentPage < totalPages) {
+                            currentPage += 1;
+                            renderPlayerPage();
+                        }
+                    };
+
+                    renderPlayerPage();
+                    playerPagination.hidden = playerRows.length <= pageSize;
+
+                    pstatus.textContent = "Player statistics loaded: " + players.length + " (sorted by PPG, 15 per page).";
                     pstatus.className = "status-message status-success";
                 } catch (error) {
                     status.textContent = "Failed to load statistics: " + error.message;
                     status.className = "status-message status-error";
+
+                    const pstatus = document.getElementById("player-stats-status");
+                    pstatus.textContent = "Failed to load player statistics: " + error.message;
+                    pstatus.className = "status-message status-error";
+
+                    const playerPagination = document.getElementById("player-stats-pagination");
+                    playerPagination.hidden = true;
                 }
             }
 

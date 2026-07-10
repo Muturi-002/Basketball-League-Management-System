@@ -20,7 +20,7 @@
                         <li><a href="fixtures.html">Fixtures</a></li>
                     </ul>
                 </nav>
-                <a class="login-button" href="auth.html">Login</a>
+                <a class="login-button" href="auth.html">Sign In</a>
             </div>
         </header>
 
@@ -34,7 +34,6 @@
                 <section class="profile-card" id="manager-card" hidden>
                     <img id="manager-photo" class="profile-photo" alt="Manager Photo">
                     <div class="profile-grid">
-                        <div><strong>Manager ID:</strong> <span id="manager-id"></span></div>
                         <div><strong>Name:</strong> <span id="manager-name"></span></div>
                         <div><strong>Manager Type:</strong> <span id="manager-type"></span></div>
                         <div><strong>Team:</strong> <span id="manager-team"></span></div>
@@ -89,7 +88,6 @@
                     const team = teams.find((t) => t.clubId === manager.teamId);
 
                     const middleName = manager.middleName ? manager.middleName + " " : "";
-                    document.getElementById("manager-id").textContent = manager.managerId;
                     document.getElementById("manager-name").textContent = manager.firstName + " " + middleName + manager.lastName;
                     document.getElementById("manager-type").textContent = manager.managerType || "N/A";
                     document.getElementById("manager-team").textContent = team ? team.teamName : manager.teamId;

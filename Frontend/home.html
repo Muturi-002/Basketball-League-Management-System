@@ -20,7 +20,9 @@
                         <li><a href="fixtures.html">Fixtures</a></li>
                     </ul>
                 </nav>
-                <a class="login-button" href="auth.html">Login</a>
+                <div id="user-area">
+                    <a class="login-button" id="sign-in-link" href="auth.html">Sign In</a>
+                </div>
             </div>
         </header>
 
@@ -31,11 +33,280 @@
                     This web interface is tailored to basketball fans. Explore teams, players, fixtures, and live stats
                     for your favourite league. For the fans, by the fans.
                 </p>
+
+                <div class="home-table-grid">
+                    <section class="card-section">
+                        <h2>Top 5 Teams</h2>
+                        <div class="table-wrapper compact-table-wrapper">
+                            <table class="data-table compact-table">
+                                <thead>
+                                    <tr>
+                                        <th>Rank</th>
+                                        <th>Team</th>
+                                        <th>Wins</th>
+                                        <th>Points</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="top-teams-body"></tbody>
+                            </table>
+                        </div>
+                    </section>
+
+                    <section class="card-section">
+                        <h2>Top 5 Players</h2>
+                        <div class="table-wrapper compact-table-wrapper">
+                            <table class="data-table compact-table">
+                                <thead>
+                                    <tr>
+                                        <th>Rank</th>
+                                        <th>Player</th>
+                                        <th>Team</th>
+                                        <th>PPG</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="top-players-body"></tbody>
+                            </table>
+                        </div>
+                    </section>
+                </div>
+
+                <section class="card-section">
+                    <h2>Fixtures of the Day</h2>
+                    <p id="fixtures-current-date" class="section-note"></p>
+                    <div class="table-wrapper">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Matchup</th>
+                                    <th>Status</th>
+                                    <th>Score</th>
+                                </tr>
+                            </thead>
+                            <tbody id="today-fixtures-body"></tbody>
+                        </table>
+                    </div>
+                </section>
             </main>
 
             <div class="footer">
                 &copy; 2026 Kenya Basketball Federation - Premier League
             </div>
         </div>
+
+        <script>
+            const API_BASE = (window.location.protocol === "file:" || window.location.port !== "4000")
+                ? "http://localhost:4000"
+                : "";
+
+            function apiUrl(path) {
+                return API_BASE + path;
+            }
+
+            function fullName(person) {
+                return person.middleName
+                    ? `${person.firstName} ${person.middleName} ${person.lastName}`
+                    : `${person.firstName} ${person.lastName}`;
+            }
+
+            function parseSeasonStats(statsText) {
+                const metrics = { PPG: 0, APG: 0, RPG: 0, SPG: 0, BPG: 0 };
+                if (!statsText) {
+                    return metrics;
+                }
+
+                statsText.split(",").forEach((pair) => {
+                    const [rawKey, rawValue] = pair.split("=");
+                    if (!rawKey || !rawValue) {
+                        return;
+                    }
+                    const key = rawKey.trim().toUpperCase();
+                    const value = Number.parseFloat(rawValue.trim());
+                    if (Object.prototype.hasOwnProperty.call(metrics, key) && Number.isFinite(value)) {
+                        metrics[key] = value;
+                    }
+                });
+
+                return metrics;
+            }
+
+            function fixtureDateKey(value) {
+                return new Date(value).toISOString().slice(0, 10);
+            }
+
+            function todayKey() {
+                return new Date().toISOString().slice(0, 10);
+            }
+
+            function formatCurrentDate() {
+                return new Date().toLocaleDateString(undefined, {
+                    weekday: "long",
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric"
+                });
+            }
+
+            function scoreCell(fixture) {
+                if (fixture.fixtureStatus === "SCHEDULED") {
+                    return "—";
+                }
+                const home = fixture.homeScore ?? "?";
+                const away = fixture.awayScore ?? "?";
+                return `${home} – ${away}`;
+            }
+
+            async function loadSessionInfo() {
+                try {
+                    const resp = await fetch(apiUrl('/api/auth/me'));
+                    if (!resp.ok) return null;
+                    const data = await resp.json();
+                    return data;
+                } catch (e) {
+                    return null;
+                }
+            }
+
+            function renderUserArea(user) {
+                const container = document.getElementById('user-area');
+                if (!container) return;
+                if (!user) {
+                    container.innerHTML = `<a class="login-button" id="sign-in-link" href="auth.html">Sign In</a>`;
+                    return;
+                }
+                const displayName = user.firstName ? `${user.firstName} ${user.lastName}` : user.username;
+                container.innerHTML = `
+                    <div class="user-area" title="Account">
+                        <span class="username" id="username-display">${displayName}</span>
+                        <div class="user-menu" aria-label="Member actions">
+                            <a class="user-menu-link" href="auth.html">View Profile</a>
+                            <button id="logout-btn" type="button">Logout</button>
+                        </div>
+                    </div>
+                `;
+                const btn = document.getElementById('logout-btn');
+                btn.addEventListener('click', async () => {
+                    try {
+                        await fetch(apiUrl('/api/auth/logout'), { method: 'POST' });
+                    } catch (e) {
+                        // ignore
+                    }
+                    // refresh to clear any client state
+                    window.location.reload();
+                });
+            }
+
+            async function loadHomeDashboard() {
+                const [teamsResponse, playersResponse, fixturesResponse, statsResponse] = await Promise.all([
+                    fetch(apiUrl("/api/teams")),
+                    fetch(apiUrl("/api/players")),
+                    fetch(apiUrl("/api/fixtures")),
+                    fetch(apiUrl("/api/stats"))
+                ]);
+
+                if (!teamsResponse.ok || !playersResponse.ok || !fixturesResponse.ok || !statsResponse.ok) {
+                    throw new Error("Unable to fetch league data.");
+                }
+
+                const [teams, players, fixtures, stats] = await Promise.all([
+                    teamsResponse.json(),
+                    playersResponse.json(),
+                    fixturesResponse.json(),
+                    statsResponse.json()
+                ]);
+
+                const teamNameById = new Map();
+                teams.forEach((team) => teamNameById.set(team.clubId, team.teamName));
+
+                const topTeams = stats
+                    .slice()
+                    .sort((left, right) => {
+                        const pointsDiff = (right.points ?? 0) - (left.points ?? 0);
+                        if (pointsDiff !== 0) {
+                            return pointsDiff;
+                        }
+
+                        const netDiff = (right.netRating ?? 0) - (left.netRating ?? 0);
+                        if (netDiff !== 0) {
+                            return netDiff;
+                        }
+
+                        return (right.wins ?? 0) - (left.wins ?? 0);
+                    })
+                    .slice(0, 5);
+
+                const topPlayers = players
+                    .map((player) => ({ player, metrics: parseSeasonStats(player.currentSeasonStats) }))
+                    .sort((left, right) => {
+                        const ppgDiff = right.metrics.PPG - left.metrics.PPG;
+                        if (ppgDiff !== 0) {
+                            return ppgDiff;
+                        }
+
+                        const apgDiff = right.metrics.APG - left.metrics.APG;
+                        if (apgDiff !== 0) {
+                            return apgDiff;
+                        }
+
+                        return right.metrics.RPG - left.metrics.RPG;
+                    })
+                    .slice(0, 5);
+
+                const todaysFixtures = fixtures.filter((fixture) => fixtureDateKey(fixture.fixtureDate) === todayKey());
+
+                const teamsBody = document.getElementById("top-teams-body");
+                teamsBody.innerHTML = "";
+                topTeams.forEach((row, index) => {
+                    const tr = document.createElement("tr");
+                    tr.innerHTML = `
+                        <td>${index + 1}</td>
+                        <td>${teamNameById.get(row.teamId) || row.teamId}</td>
+                        <td>${row.wins ?? 0}</td>
+                        <td>${row.points ?? 0}</td>
+                    `;
+                    teamsBody.appendChild(tr);
+                });
+
+                const playersBody = document.getElementById("top-players-body");
+                playersBody.innerHTML = "";
+                topPlayers.forEach(({ player, metrics }, index) => {
+                    const tr = document.createElement("tr");
+                    tr.innerHTML = `
+                        <td>${index + 1}</td>
+                        <td>${fullName(player)}</td>
+                        <td>${teamNameById.get(player.teamId) || player.teamId}</td>
+                        <td>${metrics.PPG.toFixed(1)}</td>
+                    `;
+                    playersBody.appendChild(tr);
+                });
+
+                const fixturesBody = document.getElementById("today-fixtures-body");
+                fixturesBody.innerHTML = "";
+                todaysFixtures.forEach((fixture) => {
+                    const tr = document.createElement("tr");
+                    tr.innerHTML = `
+                        <td>${new Date(fixture.fixtureTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</td>
+                        <td>${teamNameById.get(fixture.homeTeamId) || fixture.homeTeamId} vs ${teamNameById.get(fixture.awayTeamId) || fixture.awayTeamId}</td>
+                        <td>${fixture.fixtureStatus || "N/A"}</td>
+                        <td>${scoreCell(fixture)}</td>
+                    `;
+                    fixturesBody.appendChild(tr);
+                });
+
+                document.getElementById("fixtures-current-date").textContent = `Current date: ${formatCurrentDate()}`;
+                document.getElementById("fixtures-current-date").textContent =
+                    `Current date: ${formatCurrentDate()}${todaysFixtures.length === 0 ? " - no fixtures scheduled." : ` - ${todaysFixtures.length} fixture(s) today.`}`;
+            }
+
+            (async function init() {
+                const user = await loadSessionInfo();
+                renderUserArea(user);
+                try {
+                    await loadHomeDashboard();
+                } catch (err) {
+                    document.getElementById("fixtures-current-date").textContent = `Current date: ${formatCurrentDate()}`;
+                }
+            })();
+        </script>
     </body>
 </html>

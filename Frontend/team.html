@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>BLMS - Team Details</title>
+        <link rel="stylesheet" href="styles.css">
+    </head>
+    <body>
+        <header>
+            <div class="header-bar">
+                <div class="site-title">KBF- Premier League</div>
+                <nav>
+                    <ul>
+                        <li><a href="home.html">Home</a></li>
+                        <li><a href="teams.html">Teams</a></li>
+                        <li><a href="players.html">Players</a></li>
+                        <li><a href="injury.html">Injury</a></li>
+                        <li><a href="stats.html">Stats</a></li>
+                        <li><a href="fixtures.html">Fixtures</a></li>
+                    </ul>
+                </nav>
+                <a class="login-button" href="auth.html">Sign In</a>
+            </div>
+        </header>
+
+        <div class="main-container">
+            <main>
+                <h1>Team Profile</h1>
+                <p>Team details and players are loaded from the selected league team.</p>
+
+                <div id="team-status" class="status-message">Loading team details...</div>
+
+                <section class="profile-card team-overview" id="team-card" hidden>
+                    <img id="team-logo" class="profile-photo" alt="Team Logo">
+                    <div class="profile-grid">
+                        <div><strong>Name:</strong> <span id="team-name"></span></div>
+                        <div><strong>History:</strong> <span id="team-history"></span></div>
+                    </div>
+                </section>
+
+                <section class="card-section roster-section" id="roster-section" hidden>
+                    <h2>Players</h2>
+                    <div id="team-roster" class="roster-grid"></div>
+                </section>
+            </main>
+
+            <div class="footer">
+                &copy; 2026 Kenya Basketball Federation (KBF)- Premier League
+            </div>
+        </div>
+
+        <script>
+            const API_BASE = (window.location.protocol === "file:" || window.location.port !== "4000")
+                ? "http://localhost:4000"
+                : "";
+
+            function apiUrl(path) {
+                return API_BASE + path;
+            }
+
+            function getTeamID() {
+                const params = new URLSearchParams(window.location.search);
+                return Number(params.get("id"));
+            }
+
+            function fullName(player) {
+                const middleName = player.middleName ? player.middleName + " " : "";
+                return player.firstName + " " + middleName + player.lastName;
+            }
+
+            function playerCard(player) {
+                const card = document.createElement("article");
+                card.className = "player-card";
+
+                const photo = player.playerPhoto
+                    ? `<img class="player-photo" src="${player.playerPhoto}" alt="${fullName(player)}">`
+                    : `<div class="player-photo" aria-hidden="true"></div>`;
+
+                card.innerHTML = `
+                    ${photo}
+                    <div class="player-card-details">
+                        <h3>${fullName(player)}</h3>
+                        <p>${player.positionCode || "N/A"}</p>
+                    </div>
+                `;
+                return card;
+            }
+
+            async function loadTeam() {
+                const status = document.getElementById("team-status");
+                const teamCard = document.getElementById("team-card");
+                const rosterSection = document.getElementById("roster-section");
+                const roster = document.getElementById("team-roster");
+
+                try {
+                    const teamID = getTeamID();
+                    if (!teamID) {
+                        throw new Error("No team ID was provided. Open this page from the Teams page.");
+                    }
+
+                    const [teamResponse, playersResponse] = await Promise.all([
+                        fetch(apiUrl("/api/teams/" + teamID)),
+                        fetch(apiUrl("/api/players"))
+                    ]);
+
+                    if (!teamResponse.ok) {
+                        throw new Error("Team not found.");
+                    }
+                    if (!playersResponse.ok) {
+                        throw new Error("Unable to load players.");
+                    }
+
+                    const team = await teamResponse.json();
+                    const players = await playersResponse.json();
+                    const teamPlayers = players.filter((player) => player.teamId === team.clubId);
+
+                    document.getElementById("team-name").textContent = team.teamName;
+                    document.getElementById("team-history").textContent = team.clubHistory || "N/A";
+
+                    const logo = document.getElementById("team-logo");
+                    if (team.teamLogo) {
+                        logo.src = team.teamLogo;
+                        logo.hidden = false;
+                    } else {
+                        logo.hidden = true;
+                    }
+
+                    roster.innerHTML = "";
+                    if (teamPlayers.length === 0) {
+                        roster.innerHTML = '<p class="section-note">No players are assigned to this team.</p>';
+                    } else {
+                        teamPlayers.forEach((player) => roster.appendChild(playerCard(player)));
+                    }
+
+                    teamCard.hidden = false;
+                    rosterSection.hidden = false;
+                    status.textContent = team.teamName + " loaded: " + teamPlayers.length + " player(s).";
+                    status.className = "status-message status-success";
+                } catch (error) {
+                    status.textContent = "Failed to load team details: " + error.message;
+                    status.className = "status-message status-error";
+                    teamCard.hidden = true;
+                    rosterSection.hidden = true;
+                }
+            }
+
+            loadTeam();
+        </script>
+    </body>
+</html>

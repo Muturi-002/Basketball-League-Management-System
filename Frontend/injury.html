@@ -20,7 +20,7 @@
                         <li><a href="fixtures.html">Fixtures</a></li>
                     </ul>
                 </nav>
-                <a class="login-button" href="auth.html">Login</a>
+                <a class="login-button" href="auth.html">Sign In</a>
             </div>
         </header>
 
@@ -30,23 +30,7 @@
                 <p>Track current injuries and player availability across the league.</p>
 
                 <h2>Injury Catalogue</h2>
-                <div id="injuries-status" class="status-message">Loading injuries...</div>
-
-                <div class="table-wrapper">
-                    <table class="data-table" id="injuries-table">
-                        <thead>
-                            <tr>
-                                <th>Injury ID</th>
-                                <th>Name</th>
-                                <th>Type</th>
-                                <th>Description</th>
-                                <th>Resources</th>
-                                <th>Video</th>
-                            </tr>
-                        </thead>
-                        <tbody id="injuries-body"></tbody>
-                    </table>
-                </div>
+                <div id="injury-groups"></div>
 
                 <h2 style="margin-top:28px">Injured Players</h2>
                 <div id="injured-status" class="status-message">Loading injured players...</div>
@@ -78,7 +62,9 @@
                 ? "http://localhost:4000"
                 : "";
 
-            function apiUrl(path) { return API_BASE + path; }
+            function apiUrl(path) {
+                return API_BASE + path;
+            }
 
             function fmtDate(iso) {
                 if (!iso) return "N/A";
@@ -90,52 +76,104 @@
                 return '<a href="' + url + '" target="_blank" rel="noopener">' + label + '</a>';
             }
 
+            function typeLabel(rawType) {
+                if (!rawType) return "Other Injuries";
+                return rawType
+                    .toString()
+                    .trim()
+                    .replace(/[_-]+/g, " ")
+                    .toLowerCase()
+                    .replace(/\b\w/g, (char) => char.toUpperCase());
+            }
+
+            function renderInjuryGroup(groupName, injuries) {
+                const section = document.createElement("section");
+                section.className = "card-section";
+
+                const title = document.createElement("h3");
+                title.textContent = typeLabel(groupName) + " (" + injuries.length + ")";
+                title.style.marginBottom = "12px";
+
+                const tableWrapper = document.createElement("div");
+                tableWrapper.className = "table-wrapper";
+
+                const table = document.createElement("table");
+                table.className = "data-table";
+                table.innerHTML = `
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Description</th>
+                            <th>Resources</th>
+                            <th>Video</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                `;
+
+                const tbody = table.querySelector("tbody");
+                injuries.forEach((inj) => {
+                    const row = document.createElement("tr");
+                    row.innerHTML = `
+                        <td>${inj.injuryName}</td>
+                        <td>${inj.injuryDescription || "N/A"}</td>
+                        <td>${linkCell(inj.injuryResources, "Resource")}</td>
+                        <td>${linkCell(inj.injuryVideoDescription, "Video")}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+
+                tableWrapper.appendChild(table);
+                section.appendChild(title);
+                section.appendChild(tableWrapper);
+
+                return section;
+            }
+
             async function loadInjuries() {
-                const status = document.getElementById("injuries-status");
-                const body   = document.getElementById("injuries-body");
+                const groups = document.getElementById("injury-groups");
+
                 try {
                     const res = await fetch(apiUrl("/api/injuries"));
                     if (!res.ok) throw new Error("HTTP " + res.status);
                     const injuries = await res.json();
+                    const groupedInjuries = new Map();
 
-                    body.innerHTML = "";
                     injuries.forEach((inj) => {
-                        const row = document.createElement("tr");
-                        row.innerHTML = `
-                            <td>${inj.injuryId}</td>
-                            <td>${inj.injuryName}</td>
-                            <td>${inj.injuryType}</td>
-                            <td>${inj.injuryDescription || "N/A"}</td>
-                            <td>${linkCell(inj.injuryResources, "Resource")}</td>
-                            <td>${linkCell(inj.injuryVideoDescription, "Video")}</td>
-                        `;
-                        body.appendChild(row);
+                        const groupName = inj.injuryType || "Other";
+                        if (!groupedInjuries.has(groupName)) {
+                            groupedInjuries.set(groupName, []);
+                        }
+                        groupedInjuries.get(groupName).push(inj);
                     });
 
-                    status.textContent = "Injuries loaded: " + injuries.length;
-                    status.className = "status-message status-success";
+                    groups.innerHTML = "";
+                    Array.from(groupedInjuries.entries())
+                        .sort(([leftName], [rightName]) => typeLabel(leftName).localeCompare(typeLabel(rightName)))
+                        .forEach(([groupName, items]) => {
+                            groups.appendChild(renderInjuryGroup(groupName, items));
+                        });
                 } catch (err) {
-                    status.textContent = "Failed to load injuries: " + err.message;
-                    status.className = "status-message status-error";
+                    console.error("Failed to load injuries:", err);
                 }
             }
 
             async function loadInjuredPlayers() {
                 const status = document.getElementById("injured-status");
-                const body   = document.getElementById("injured-body");
+                const body = document.getElementById("injured-body");
+
                 try {
-                    // Fetch injured players and players list in parallel for name lookup.
                     const [injuredRes, playersRes] = await Promise.all([
                         fetch(apiUrl("/api/injured-players")),
                         fetch(apiUrl("/api/players"))
                     ]);
-                    if (!injuredRes.ok)  throw new Error("HTTP " + injuredRes.status + " (injured-players)");
-                    if (!playersRes.ok)  throw new Error("HTTP " + playersRes.status + " (players)");
+
+                    if (!injuredRes.ok) throw new Error("HTTP " + injuredRes.status + " (injured-players)");
+                    if (!playersRes.ok) throw new Error("HTTP " + playersRes.status + " (players)");
 
                     const injured = await injuredRes.json();
                     const players = await playersRes.json();
 
-                    // Build player ID → full name map.
                     const playerNameById = new Map();
                     players.forEach((p) => {
                         const mid = p.middleName ? p.middleName + " " : "";
@@ -145,7 +183,6 @@
                     body.innerHTML = "";
                     injured.forEach((ip) => {
                         const row = document.createElement("tr");
-                        // injuryStatus values from schema CHECK: 'CURRENT' | 'RECOVERED'
                         const statusLabel = ip.injuryStatus === "CURRENT" ? "Current" : "Recovered";
                         row.innerHTML = `
                             <td>${ip.injuredPlayerId}</td>

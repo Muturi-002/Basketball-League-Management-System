@@ -7,13 +7,13 @@ import (
 )
 
 type Club struct {
-	ClubID              int64   `json:"clubId"`
-	TeamName            string  `json:"teamName"`
-	TeamLogo            *string `json:"teamLogo,omitempty"`
-	ClubManagerID       *int64  `json:"clubManagerId,omitempty"`
-	ClubManagerPhoto    *string `json:"clubManagerPhoto,omitempty"`
-	ClubLocationID      *int64  `json:"clubLocationId,omitempty"`
-	ClubHistory         *string `json:"clubHistory,omitempty"`
+	ClubID           int64   `json:"clubId"`
+	TeamName         string  `json:"teamName"`
+	TeamLogo         *string `json:"teamLogo,omitempty"`
+	ClubManagerID    *int64  `json:"clubManagerId,omitempty"`
+	ClubManagerPhoto *string `json:"clubManagerPhoto,omitempty"`
+	ClubLocationID   *int64  `json:"clubLocationId,omitempty"`
+	ClubHistory      *string `json:"clubHistory,omitempty"`
 }
 
 type Stadium struct {
@@ -24,12 +24,7 @@ type Stadium struct {
 }
 
 func ListClubs() ([]Club, error) {
-	conn, err := EnsureConnected()
-	if err != nil {
-		return nil, fmt.Errorf("clubs list: %w", err)
-	}
-
-	rows, err := conn.Query(`
+	return queryList("clubs list", "query clubs", "iterate clubs", `
 		SELECT
 			club_id,
 			team_name,
@@ -39,15 +34,7 @@ func ListClubs() ([]Club, error) {
 			club_location_id,
 			club_history
 		FROM clubs
-		ORDER BY club_id`)
-	if err != nil {
-		log.Printf("query clubs error: %v", err)
-		return nil, fmt.Errorf("query clubs: %w", err)
-	}
-	defer rows.Close()
-
-	clubs := make([]Club, 0)
-	for rows.Next() {
+		ORDER BY club_id`, func(rows *sql.Rows) (Club, error) {
 		var club Club
 		var (
 			teamLogo         sql.NullString
@@ -67,7 +54,7 @@ func ListClubs() ([]Club, error) {
 			&clubHistory,
 		); err != nil {
 			log.Printf("scan club row error: %v", err)
-			return nil, fmt.Errorf("scan club row: %w", err)
+			return Club{}, fmt.Errorf("scan club row: %w", err)
 		}
 
 		club.TeamLogo = nullStringPtr(teamLogo)
@@ -76,15 +63,8 @@ func ListClubs() ([]Club, error) {
 		club.ClubLocationID = nullInt64Ptr(clubLocationID)
 		club.ClubHistory = nullStringPtr(clubHistory)
 
-		clubs = append(clubs, club)
-	}
-
-	if err := rows.Err(); err != nil {
-		log.Printf("iterate clubs error: %v", err)
-		return nil, fmt.Errorf("iterate clubs: %w", err)
-	}
-
-	return clubs, nil
+		return club, nil
+	})
 }
 
 func GetClubByID(clubID int64) (*Club, error) {
@@ -95,11 +75,11 @@ func GetClubByID(clubID int64) (*Club, error) {
 
 	var club Club
 	var (
-		teamLogo            sql.NullString
-		clubManagerID       sql.NullInt64
-		clubManagerPhoto    sql.NullString
-		clubLocationID      sql.NullInt64
-		clubHistory         sql.NullString
+		teamLogo         sql.NullString
+		clubManagerID    sql.NullInt64
+		clubManagerPhoto sql.NullString
+		clubLocationID   sql.NullInt64
+		clubHistory      sql.NullString
 	)
 
 	err = conn.QueryRow(`
@@ -140,26 +120,14 @@ func GetClubByID(clubID int64) (*Club, error) {
 }
 
 func ListStadiums() ([]Stadium, error) {
-	conn, err := EnsureConnected()
-	if err != nil {
-		return nil, fmt.Errorf("stadiums list: %w", err)
-	}
-
-	rows, err := conn.Query(`
+	return queryList("stadiums list", "query stadiums", "iterate stadiums", `
 		SELECT
 			stadium_id,
 			stadium_name,
 			stadium_location,
 			associated_club
 		FROM stadiums
-		ORDER BY stadium_id`)
-	if err != nil {
-		return nil, fmt.Errorf("query stadiums: %w", err)
-	}
-	defer rows.Close()
-
-	stadiums := make([]Stadium, 0)
-	for rows.Next() {
+		ORDER BY stadium_id`, func(rows *sql.Rows) (Stadium, error) {
 		var stadium Stadium
 		if err := rows.Scan(
 			&stadium.StadiumID,
@@ -167,16 +135,10 @@ func ListStadiums() ([]Stadium, error) {
 			&stadium.StadiumLocation,
 			&stadium.AssociatedClub,
 		); err != nil {
-			return nil, fmt.Errorf("scan stadium row: %w", err)
+			return Stadium{}, fmt.Errorf("scan stadium row: %w", err)
 		}
-		stadiums = append(stadiums, stadium)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate stadiums: %w", err)
-	}
-
-	return stadiums, nil
+		return stadium, nil
+	})
 }
 
 func GetStadiumByID(stadiumID int64) (*Stadium, error) {
@@ -207,13 +169,4 @@ func GetStadiumByID(stadiumID int64) (*Stadium, error) {
 	}
 
 	return &stadium, nil
-}
-
-// nullInt64Ptr converts a sql.NullInt64 to a *int64.
-func nullInt64Ptr(n sql.NullInt64) *int64 {
-	if !n.Valid {
-		return nil
-	}
-	v := n.Int64
-	return &v
 }
