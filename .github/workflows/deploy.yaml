@@ -57,16 +57,16 @@ jobs:
         run: |
           echo "$PRIVATE_KEY" > private-key && chmod 700 private-key
           ssh -o StrictHostKeyChecking=no -i private-key ${SERVER_USER}@${SERVER_IP} '
-            if [ -d '${REPO_PATH}' ]; then
-              rm -rf ${REPO_PATH}
-              git clone https://github.com/Muturi-002/Basketball-League-Management-System.git
-              cd ${REPO_PATH}
-              rm -rf .github/
+            if [ -d "${REPO_PATH}" ]; then
+              rm -rf "${REPO_PATH}""
+              pkill -f './blms' || true
             fi
+            git clone https://github.com/Muturi-002/Basketball-League-Management-System.git
+            cd ${REPO_PATH}
+            rm -rf .github/
             cd '${REPO_PATH}/Backend'
-            pkill -f './blms' || true
             go build -o blms .
-            nohup ./blms > backend.log 2>&1 &
+            go run . > backend.log 2>&1 &
             '
             rm -f private-key
       - name: Configure NGINX
@@ -75,7 +75,7 @@ jobs:
           ssh -o StrictHostKeyChecking=no -i private-key ${SERVER_USER}@${SERVER_IP} '
             sudo tee /etc/nginx/conf.d/goapp.conf > /dev/null <<EOF
               server {
-                  listen 80;
+                  listen 4000;
                   server_name _;
 
                   location / {
