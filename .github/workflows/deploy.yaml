@@ -14,6 +14,7 @@ env:
   SERVER_USER: ${{ secrets.SERVER_USERNAME }}
   PRIVATE_KEY: ${{ secrets.SSH_KEY }}
   REPO_PATH: /home/${{ secrets.SERVER_USERNAME }}/Basketball-League-Management-System
+  DB_CONFIG_FILE: ${{ secrets.DB_CONFIG_FILE }}
 
 jobs:
   install:
@@ -58,12 +59,16 @@ jobs:
           echo "$PRIVATE_KEY" > private-key && chmod 700 private-key
           ssh -o StrictHostKeyChecking=no -i private-key ${SERVER_USER}@${SERVER_IP} '
               if [ -d "${REPO_PATH}" ]; then
-                rm -rf "${REPO_PATH}"
-                pkill -f './blms' || true
+                kill -9 blms
+                cd ${REPO_PATH}
+                git fetch origin prod
+              else
+                echo "Directory ${REPO_PATH} does not exist. Proceeding to clone the repository."
+                git clone -b prod https://github.com/Muturi-002/Basketball-League-Management-System.git
+                cd ${REPO_PATH}
+                rm -rf .github/
+                cat ${DB_CONFIG_FILE} > .env
               fi
-              git clone -b prod https://github.com/Muturi-002/Basketball-League-Management-System.git
-              cd ${REPO_PATH}
-              rm -rf .github/
               cd '${REPO_PATH}/Backend'
               go build -o blms .
               go run . > backend.log 2>&1 &
