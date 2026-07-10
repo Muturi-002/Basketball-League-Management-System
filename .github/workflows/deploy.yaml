@@ -57,18 +57,32 @@ jobs:
         run: |
           echo "$PRIVATE_KEY" > private-key && chmod 700 private-key
           ssh -o StrictHostKeyChecking=no -i private-key ${SERVER_USER}@${SERVER_IP} '
-            if [ -d "${REPO_PATH}" ]; then
-              rm -rf "${REPO_PATH}""
-              pkill -f './blms' || true
-            fi
-            git clone https://github.com/Muturi-002/Basketball-League-Management-System.git
-            cd ${REPO_PATH}
-            rm -rf .github/
-            cd '${REPO_PATH}/Backend'
-            go build -o blms .
-            go run . > backend.log 2>&1 &
+              if [ -d "${REPO_PATH}" ]; then
+                rm -rf "${REPO_PATH}"
+                pkill -f './blms' || true
+              fi
+              git clone https://github.com/Muturi-002/Basketball-League-Management-System.git
+              cd ${REPO_PATH}
+              rm -rf .github/
+              cd '${REPO_PATH}/Backend'
+              go build -o blms .
+              go run . > backend.log 2>&1 &
             '
             rm -f private-key
+
+      - name: Check if the server is running
+        run: |
+          echo "$PRIVATE_KEY" > private-key && chmod 700 private-key
+          ssh -o StrictHostKeyChecking=no -i private-key ${SERVER_USER}@${SERVER_IP} '
+            if pgrep -f "./blms" >/dev/null; then
+              echo "Server is running."
+            else
+              echo "Server is not running."
+              exit 1
+            fi
+          '
+          rm -f private-key
+      
       - name: Configure NGINX
         run: |
           echo "$PRIVATE_KEY" > private-key && chmod 700 private-key
