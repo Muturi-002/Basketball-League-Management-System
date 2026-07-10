@@ -93,7 +93,6 @@ jobs:
           echo "$PRIVATE_KEY" > private-key && chmod 700 private-key
           ssh -o StrictHostKeyChecking=no -i private-key ${SERVER_USER}@${SERVER_IP} '
             sudo tee /etc/nginx/conf.d/goapp.conf > /dev/null <<EOF
-            server {
               server {
                 listen 80;
                 server_name _; 
