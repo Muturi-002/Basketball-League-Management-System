@@ -244,14 +244,22 @@ func CreateUser(user User) (*AuthUser, error) {
 		return nil, fmt.Errorf("commit user create: %w", err)
 	}
 
-	return &AuthUser{
+	authUser := &AuthUser{
 		UserID:       userID,
 		Username:     userID,
 		FirstName:    firstName,
 		LastName:     lastName,
 		EmailAddress: emailAddress,
 		FavTeamID:    favTeamID,
-	}, nil
+	}
+
+	go func() {
+		if err := sendAccountCreatedEmail(authUser.EmailAddress, authUser.FirstName, authUser.Username); err != nil {
+			fmt.Printf("account email failed for %s: %v\n", authUser.EmailAddress, err)
+		}
+	}()
+
+	return authUser, nil
 }
 
 func normalizeUserID(userID string) string {
